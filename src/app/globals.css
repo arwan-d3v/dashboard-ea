@@ -1,26 +1,76 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* LIGHT MODE */
+  --background: #FFFFFF;
+  --foreground: #111827;
+  --card-bg: #FFFFFF;
+  --card-border: #E5E7EB;
+  --nav-bg: #FFFFFF;
+  --primary: #3B82F6;
+  --primary-foreground: #FFFFFF;
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
+  --active-green: #10B981;
+  --active-green-bg: #ECFDF5;
+  --stat-gradient-blue: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+  --stat-gradient-emerald: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
+  --stat-gradient-purple: linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%);
+  --stat-gradient-yellow: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  /* DARK MODE */
+  --background: #000000;
+  --foreground: #F9FAFB;
+  --card-bg: #0F0F0F;
+  --card-border: #262626;
+  --nav-bg: #000000;
+  --primary: #00F2EA;
+  --primary-foreground: #000000;
+  --muted: #1A1A1A;
+  --muted-foreground: #9CA3AF;
+  --active-green: #00F566;
+  --active-green-bg: #00220A;
+  --stat-gradient-blue: linear-gradient(135deg, #001A2D 0%, #002947 100%);
+  --stat-gradient-emerald: linear-gradient(135deg, #00220A 0%, #003310 100%);
+  --stat-gradient-purple: linear-gradient(135deg, #1A002A 0%, #2A0044 100%);
+  --stat-gradient-yellow: linear-gradient(135deg, #2A2000 0%, #3A3000 100%);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* KELAS CSS STANDAR (Aman 100% untuk Tailwind V4) */
+.style-card {
+  background-color: var(--card-bg);
+  padding: 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid var(--card-border);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  transition: all 0.3s ease;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.style-card:hover {
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  border-color: var(--primary);
 }
+
+.style-table-container {
+  background-color: var(--card-bg);
+  border-radius: 1rem;
+  border: 1px solid var(--card-border);
+  overflow: hidden;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.style-table-header {
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--card-border);
+  background-color: var(--muted);
+}
+
+.stat-bg-blue { background: var(--stat-gradient-blue); }
+.stat-bg-emerald { background: var(--stat-gradient-emerald); }
+.stat-bg-purple { background: var(--stat-gradient-purple); }
+.stat-bg-yellow { background: var(--stat-gradient-yellow); }
