@@ -1,7 +1,9 @@
 import "./globals.css";
-import { Settings, LogOut, LayoutDashboard } from "lucide-react";
+// PERBAIKAN: Menambahkan ShieldCheck ke dalam daftar import
+import { Settings, LogOut, LayoutDashboard, Key, ShieldCheck, BarChart } from "lucide-react"; 
 import { ThemeProvider } from "next-themes";
 import ThemeToggle from "../components/ThemeToggle";
+import Link from "next/link"; 
 
 export const metadata = {
   title: "KRX-PRO'V17 Dashboard Monitoring",
@@ -11,7 +13,6 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="id" suppressHydrationWarning>
-      {/* KITA PINDAHKAN WARNA DAN FONT KE SINI AGAR TAILWIND V4 BAHAGIA */}
       <body className="bg-[var(--background)] text-[var(--foreground)] antialiased font-sans transition-colors duration-300">
         
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
@@ -27,10 +28,38 @@ export default function RootLayout({ children }) {
                 </h1>
               </div>
               
-              <div className="flex gap-3 items-center">
+              <div className="flex gap-2 sm:gap-3 items-center">
+                
+                <Link href="/" className="px-3 py-2 text-sm font-medium rounded-lg text-[var(--muted-foreground)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition">
+                  Dashboard
+                </Link>
+                
+                {/* Menu License (Admin/Owner) */}
+                <Link href="/create-license" className="px-3 py-2 text-sm font-medium rounded-lg text-[var(--muted-foreground)] flex items-center gap-1.5 hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition">
+                  <Key size={16}/> <span className="hidden sm:inline">License</span>
+                </Link>
+
+                {/* TAMBAHAN MENU ANALYTICS */}
+                <Link href="/analytics" className="px-3 py-2 text-sm font-medium rounded-lg text-[var(--muted-foreground)] flex items-center gap-1.5 hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition">
+                   <BarChart size={16}/> <span className="hidden sm:inline">Analytics</span>
+                </Link>
+
+                {/* Menu Manager (Manajemen Lisensi Aktif) - TAMBAHAN BARU */}
+                <Link href="/license-manager" className="px-3 py-2 text-sm font-medium rounded-lg text-[var(--muted-foreground)] flex items-center gap-1.5 hover:text-[var(--primary)] transition">
+                  <ShieldCheck size={16}/> <span className="hidden sm:inline">Manager</span>
+                </Link>
+                
+                {/* Menu Approval Khusus Owner */}
+                <Link href="/approval-center" className="relative px-3 py-2 text-sm font-medium rounded-lg bg-orange-500/10 text-orange-600 flex items-center gap-1.5 hover:bg-orange-500/20 transition border border-orange-500/20">
+                  <ShieldCheck size={16}/> 
+                  <span className="hidden sm:inline">Approval</span>
+                </Link>
+
+                <div className="h-6 w-px bg-[var(--card-border)] mx-1"></div>
+
                 <ThemeToggle />
                 
-                <button className="p-2.5 text-[var(--muted-foreground)] hover:text-[var(--primary)] transition">
+                <button className="p-2.5 text-[var(--muted-foreground)] hover:text-[var(--primary)] transition hidden sm:block">
                   <Settings size={20}/>
                 </button>
                 <button className="p-2.5 text-red-500 hover:text-red-400 transition bg-red-500/10 rounded-xl border border-red-500/20">
