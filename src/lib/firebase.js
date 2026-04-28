@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
+import { getAuth } from "firebase/auth";
 
 // Konfigurasi Firebase krx-modern-dev Anda
 const firebaseConfig = {
@@ -20,3 +21,6 @@ const db = getDatabase(app);
 
 // Ekspor app dan db agar bisa dipakai di halaman lain (seperti halaman Create License)
 export { app, db };
+
+// Ekspor auth agar bisa dipakai di halaman lain (seperti halaman Login)
+export const auth = getAuth(app);
