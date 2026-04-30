@@ -79,29 +79,36 @@ function AppNavbar() {
               <BarChart size={16}/> <span className="hidden md:inline">Analytics</span>
             </Link>
 
-            {(role === 'admin' || role === 'super_admin') && (
-              <>
-                <div className="w-px h-6 bg-[var(--card-border)] mx-1 hidden sm:block"></div>
-                
-                <Link href="/create-license" className="px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg text-[var(--muted-foreground)] flex items-center gap-1.5 hover:bg-[var(--muted)] hover:text-[var(--foreground)] transition">
-                  <Key size={16}/> <span className="hidden md:inline">License</span>
-                </Link>
+          {/* HANYA ADMIN & SUPER ADMIN YANG BISA LIHAT INI */}
+          {(role === 'admin' || role === 'super_admin') && (
+            <>
+              <div className="w-px h-6 bg-[var(--card-border)] mx-1 hidden sm:block"></div>
+              
+              {/* Admin HANYA BISA mengajukan (Create) dan melihat daftarnya (Manager) */}
+              <Link href="/create-license" className="px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg text-[var(--muted-foreground)] flex items-center gap-1.5 hover:bg-[var(--muted)] hover:text-[var(--foreground)] transition">
+                <Key size={16}/> <span className="hidden md:inline">License</span>
+              </Link>
 
-                <Link href="/license-manager" className="px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg text-[var(--muted-foreground)] flex items-center gap-1.5 hover:bg-[var(--muted)] hover:text-[var(--foreground)] transition">
-                  <ShieldCheck size={16}/> <span className="hidden md:inline">Manager</span>
-                </Link>
+              <Link href="/license-manager" className="px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg text-[var(--muted-foreground)] flex items-center gap-1.5 hover:bg-[var(--muted)] hover:text-[var(--foreground)] transition">
+                <ShieldCheck size={16}/> <span className="hidden md:inline">Manager</span>
+              </Link>
+            </>
+          )}
 
-                <Link href="/approval-center" className="px-3 py-2 text-xs sm:text-sm font-bold rounded-lg bg-orange-500/10 text-orange-500 flex items-center gap-1.5 hover:bg-orange-500/20 transition">
-                  <AlertCircle size={16}/> <span className="hidden md:inline">Approval</span>
-                </Link>
-              </>
-            )}
 
-            {role === 'super_admin' && (
+          {/* HAK MUTLAK KHUSUS SUPER ADMIN */}
+          {role === 'super_admin' && (
+            <>
+              {/* Super Admin BISA melakukan Approval Lisensi yang diajukan Admin */}
+              <Link href="/approval-center" className={`px-3 py-2 text-xs sm:text-sm font-bold rounded-lg flex items-center gap-1.5 transition ml-1 ${pathname === '/approval-center' ? 'bg-orange-500 text-white' : 'bg-orange-500/10 text-orange-500 hover:bg-orange-500/20'}`}>
+                <AlertCircle size={16}/> <span className="hidden md:inline">Approval</span>
+              </Link>
+
               <Link href="/user-management" className={`px-3 py-2 text-xs sm:text-sm font-bold rounded-lg flex items-center gap-1.5 transition ml-1 ${pathname === '/user-management' ? 'bg-purple-500 text-white' : 'bg-purple-500/10 text-purple-500 hover:bg-purple-500/20'}`}>
                 <UserPlus size={16}/> <span className="hidden md:inline">Users</span>
               </Link>
-            )}
+            </>
+          )}
 
             <div className="w-px h-6 bg-[var(--card-border)] mx-1"></div>
             
