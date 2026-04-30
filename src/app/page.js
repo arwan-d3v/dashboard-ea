@@ -97,13 +97,29 @@ export default function Dashboard() {
     { date: 'Wk 4', balance: initDepo + (curBal-initDepo)*0.85, equity: initDepo + (curEq-initDepo)*0.95 },
     { date: 'Now', balance: curBal, equity: curEq },
   ];
-  const mockDailyHistory = [
-    { date: t.daysShort.fri, profit: 125.50, growth: 1.2, lot: 2.5 },
-    { date: t.daysShort.thu, profit: 85.20, growth: 0.8, lot: 1.8 },
-    { date: t.daysShort.wed, profit: -45.00, growth: -0.4, lot: 3.0 },
-    { date: t.daysShort.tue, profit: 210.00, growth: 2.1, lot: 4.2 },
-    { date: t.daysShort.mon, profit: 50.00, growth: 0.5, lot: 1.2 },
-  ];
+
+  // LOGIKA FETCHING DATA SNAPSHOT REALTIME UNTUK 5 HARI TERAKHIR
+  const snapshots = currentAccountData.snapshots || {};
+  const realDailyHistory = Object.keys(snapshots)
+    .sort((a, b) => b - a) // Urutkan descending (Terbaru ke Terlama)
+    .slice(0, 5) // Ambil maksimal 5 data
+    .map(ts => {
+      let timeMs = parseInt(ts);
+      if (timeMs < 10000000000) timeMs = timeMs * 1000; // Failsafe Detik ke Milidetik
+      
+      const dateObj = new Date(timeMs);
+      const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+      const dayName = t.daysShort[dayNames[dateObj.getDay()]];
+
+      const dayData = snapshots[ts];
+      return {
+        id: ts,
+        date: dayName,
+        profit: dayData.daily_profit || 0,
+        growth: dayData.daily_growth_percent || 0,
+        lot: dayData.daily_lots || 0
+      };
+    });
 
   if (isLoading) return <div className="flex justify-center items-center h-screen font-bold text-[var(--primary)] animate-pulse text-xl">Connecting to Server...</div>;
   
@@ -117,7 +133,7 @@ export default function Dashboard() {
   return (
     <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto font-sans transition-colors duration-300">
       
-      {/* 🚀 HEADER: LIVE PORTFOLIO & KONTROL (MENGGUNAKAN VAR CSS AMAN) */}
+      {/* HEADER: LIVE PORTFOLIO & KONTROL */}
       <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-3xl p-6 md:p-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 shadow-sm relative overflow-hidden">
         
         {/* Kiri: Nominal & Status */}
@@ -191,7 +207,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 🚀 ZONA 1: THE PERFORMANCE BILLBOARD */}
+      {/* ZONA 1: THE PERFORMANCE BILLBOARD */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: t.absGrowth, val: `${liveData.absolute_growth_percent > 0 ? '+' : ''}${formatPct(liveData.absolute_growth_percent)}`, sub: t.basedOnInitial, icon: TrendingUp, color: 'text-green-500' },
@@ -216,7 +232,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* 🚀 ZONA 2: CASH FLOW LEDGER */}
+      {/* ZONA 2: CASH FLOW LEDGER */}
       <div className="bg-[var(--muted)]/50 rounded-2xl p-5 border border-[var(--card-border)] flex flex-wrap gap-4 justify-between items-center shadow-sm">
         {[
           { label: t.initDepo, val: formatCur(liveData.initial_deposit), icon: Wallet, c: 'text-blue-500' },
@@ -239,7 +255,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 🚀 ZONA 3: CHART & DAILY 5-DAYS */}
+      {/* ZONA 3: CHART & DAILY 5-DAYS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] p-6 shadow-sm">
           <h3 className="font-bold text-sm text-[var(--foreground)] mb-6 flex items-center gap-2"><Activity size={16} className="text-[var(--primary)]"/> {t.chartTitle}</h3>
@@ -266,23 +282,29 @@ export default function Dashboard() {
         <div className="bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] p-6 flex flex-col shadow-sm">
           <h3 className="font-bold text-sm text-[var(--foreground)] mb-6 flex items-center gap-2"><CalendarDays size={16} className="text-[var(--primary)]"/> {t.dailyPerf}</h3>
           <div className="space-y-2 flex-grow flex flex-col justify-center">
-            {mockDailyHistory.map((day, idx) => (
-              <div key={idx} className="flex justify-between items-center p-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)] hover:bg-[var(--muted)] transition-colors shadow-sm">
-                <div>
-                  <p className="text-xs font-bold text-[var(--foreground)] uppercase">{day.date}</p>
-                  <p className="text-[10px] text-[var(--muted-foreground)] flex items-center gap-1 mt-0.5"><BarChart3 size={10}/> {day.lot} Vol</p>
+            {realDailyHistory.length > 0 ? (
+              realDailyHistory.map((day, idx) => (
+                <div key={idx} className="flex justify-between items-center p-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)] hover:bg-[var(--muted)] transition-colors shadow-sm">
+                  <div>
+                    <p className="text-xs font-bold text-[var(--foreground)] uppercase">{day.date}</p>
+                    <p className="text-[10px] text-[var(--muted-foreground)] flex items-center gap-1 mt-0.5"><BarChart3 size={10}/> {Number(day.lot).toFixed(1)} Vol</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-sm font-black ${day.profit >= 0 ? "text-green-500" : "text-red-500"}`}>{day.profit > 0 ? "+" : ""}{formatCur(day.profit)}</p>
+                    <p className={`text-[9px] font-bold ${day.growth >= 0 ? "text-green-600 bg-green-500/10" : "text-red-600 bg-red-500/10"} inline-block px-1.5 py-0.5 rounded mt-0.5`}>{day.growth > 0 ? "+" : ""}{Number(day.growth).toFixed(1)}%</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className={`text-sm font-black ${day.profit >= 0 ? "text-green-500" : "text-red-500"}`}>{day.profit > 0 ? "+" : ""}{formatCur(day.profit)}</p>
-                  <p className={`text-[9px] font-bold ${day.growth >= 0 ? "text-green-600 bg-green-500/10" : "text-red-600 bg-red-500/10"} inline-block px-1.5 py-0.5 rounded mt-0.5`}>{day.growth > 0 ? "+" : ""}{day.growth}%</p>
-                </div>
+              ))
+            ) : (
+              <div className="text-center py-6 border border-[var(--card-border)] border-dashed rounded-xl">
+                <p className="text-xs font-bold text-[var(--muted-foreground)]">Belum ada rekam jejak harian.</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
 
-      {/* 🚀 ZONA 4: LIVE OPEN POSITIONS */}
+      {/* ZONA 4: LIVE OPEN POSITIONS */}
       <div className="bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] shadow-sm overflow-hidden">
         <div className="p-5 border-b border-[var(--card-border)] flex justify-between items-center bg-[var(--muted)]/30">
           <h3 className="font-bold text-sm text-[var(--foreground)] flex items-center gap-2"><Clock size={16} className="text-[var(--primary)]" />{t.livePositions} ({openTrades.length})</h3>
