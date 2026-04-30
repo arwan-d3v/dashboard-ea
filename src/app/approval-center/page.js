@@ -1,34 +1,38 @@
 "use client";
 import { useState, useEffect } from "react";
-// PERBAIKAN: Menambahkan KeyRound di import
-import { ShieldCheck, CheckCircle, XCircle, User, Server, Clock, Tag, Search, AlertCircle, KeyRound } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import { db } from "../../lib/firebase";
 import { ref, onValue, set, remove } from "firebase/database";
+import { ShieldAlert, CheckCircle, XCircle, Clock, KeyRound, Server, User, Tag, ShieldCheck } from "lucide-react";
 
 export default function ApprovalCenter() {
+  const { role, user } = useAuth();
   const [pendingList, setPendingList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
 
   useEffect(() => {
-    const pendingRef = ref(db, 'pending_registrations');
-    const unsubscribe = onValue(pendingRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const list = Object.keys(data).map(key => ({
-          id: key,
-          ...data[key]
-        }));
-        setPendingList(list);
-      } else {
-        setPendingList([]);
-      }
-      setIsLoading(false);
-    });
+    if (role === 'super_admin') {
+      const pendingRef = ref(db, 'pending_registrations');
+      const unsubscribe = onValue(pendingRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          // Ubah object firebase menjadi array agar mudah di-map
+          const formattedData = Object.keys(data).map(key => ({
+            id: key,
+            ...data[key]
+          }));
+          setPendingList(formattedData);
+        } else {
+          setPendingList([]);
+        }
+        setIsLoading(false);
+      });
+      return () => unsubscribe();
+    }
+  }, [role]);
 
-    return () => unsubscribe();
-  }, []);
-
+  // FUNGSI KRIPTOGRAFI SHA-256
   const generateHash = async (account, broker, createdAt, expiredAt) => {
     const rawString = `${account}|${broker}|${createdAt}|${expiredAt}`;
     const encoder = new TextEncoder();
@@ -40,148 +44,178 @@ export default function ApprovalCenter() {
   };
 
   const handleApprove = async (item) => {
-    if (!confirm(`Approve pendaftaran untuk ${item.investorName}?`)) return;
+    if (!confirm(`Setujui lisensi untuk akun ${item.account_number}?`)) return;
     setProcessingId(item.id);
 
     try {
-      const licenseKey = await generateHash(
-        item.accountNumber, 
-        item.brokerServer, 
-        item.createdAt, 
-        item.expiredAt
-      );
-
-      const licenseRef = ref(db, `licenses/${item.accountNumber}`);
+      // 1. Generate Key Baru
+      const newLicenseKey = await generateHash(item.account_number, item.broker_server, item.created_at, item.expired_at);
+      
+      // 2. Pindahkan ke node 'licenses' (Lisensi Aktif)
+      const licenseRef = ref(db, `licenses/${item.account_number}`);
       await set(licenseRef, {
-        license_key: licenseKey,
-        investor_name: item.investorName,
-        email: item.email,
-        telegram: item.telegram,
-        whatsapp: item.whatsapp,
-        broker_server: item.brokerServer,
+        license_key: newLicenseKey,
+        investor_name: item.investor_name || "Unknown",
+        email: item.email || "",
+        telegram: item.telegram || "",
+        whatsapp: item.whatsapp || "",
+        broker_server: item.broker_server,
         status: "ACTIVE",
-        expiry_date: item.expiredAt,
-        last_heartbeat: Date.now().toString(),
-        discount_applied: item.finalDiscountPercent,
-        approved_at: Date.now().toString()
+        expiry_date: item.expired_at,
+        last_heartbeat: item.created_at,
+        discount_applied: item.discount_applied || 0,
+        requested_by: item.requested_by, // Admin yang mengajukan
+        approved_by: user.email          // Super admin yang menyetujui
       });
 
-      const pendingItemRef = ref(db, `pending_registrations/${item.id}`);
-      await remove(pendingItemRef);
+      // 3. Hapus dari daftar antrean (pending_registrations)
+      await remove(ref(db, `pending_registrations/${item.id}`));
 
-      alert("Lisensi berhasil diaktifkan dan dikirim ke database utama!");
     } catch (error) {
-      console.error("Error approving:", error);
-      alert("Gagal melakukan approval.");
+      console.error("Gagal menyetujui:", error);
+      alert("Terjadi kesalahan sistem saat memproses approval.");
     } finally {
       setProcessingId(null);
     }
   };
 
-  const handleReject = async (item) => {
-    if (!confirm(`Tolak pendaftaran untuk ${item.investorName}? Data akan dihapus.`)) return;
-    setProcessingId(item.id);
-
+  const handleReject = async (id, accountNumber) => {
+    if (!confirm(`TOLAK dan HAPUS pengajuan untuk akun ${accountNumber}? Data tidak dapat dikembalikan.`)) return;
+    setProcessingId(id);
     try {
-      const pendingItemRef = ref(db, `pending_registrations/${item.id}`);
-      await remove(pendingItemRef);
+      await remove(ref(db, `pending_registrations/${id}`));
     } catch (error) {
-      alert("Gagal menghapus data.");
+      console.error("Gagal menolak:", error);
     } finally {
       setProcessingId(null);
     }
   };
+
+  if (role !== 'super_admin') {
+    return <div className="flex h-[80vh] items-center justify-center font-bold text-red-500 text-xl"><ShieldAlert className="mr-2"/> Akses Ditolak</div>;
+  }
 
   return (
-    <div className="p-5 md:p-10 space-y-8 max-w-6xl mx-auto">
-      <div className="style-card justify-between">
-        <div className="flex items-center gap-4">
-          <div className="bg-orange-500/10 p-4 rounded-full text-orange-500">
-            <ShieldCheck size={32} />
+    <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto font-sans">
+      
+      {/* HEADER */}
+      <div className="bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] p-6 md:p-8 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="flex items-center gap-5">
+          <div className="p-4 rounded-2xl bg-orange-500/10 text-orange-500 shadow-inner">
+            <ShieldCheck size={36}/>
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-[var(--foreground)]">Approval Center</h2>
-            <p className="text-sm text-[var(--muted-foreground)]">Verifikasi pendaftaran investor dari para Admin.</p>
+            <h1 className="text-2xl font-black text-[var(--foreground)] tracking-tight">Approval Center</h1>
+            <p className="text-sm text-[var(--muted-foreground)]">Verifikasi pendaftaran lisensi dari para Admin.</p>
           </div>
         </div>
-        <div className="hidden md:flex bg-[var(--muted)] px-4 py-2 rounded-xl border border-[var(--card-border)] items-center gap-2">
-          <Clock size={16} className="text-[var(--primary)]" />
-          <span className="text-sm font-bold text-[var(--foreground)]">{pendingList.length} Antrean Tertunda</span>
+        
+        <div className="bg-blue-500/10 border border-blue-500/20 px-5 py-3 rounded-2xl flex items-center gap-3">
+          <Clock className="text-blue-500" size={20} />
+          <span className="font-black text-blue-500">{pendingList.length} Antrean Tertunda</span>
         </div>
       </div>
 
-      <div className="style-table-container">
-        <div className="style-table-header flex justify-between items-center">
-          <h3 className="font-bold flex items-center gap-2">
-            <Search size={18} className="text-[var(--primary)]" />
-            Daftar Tunggu Persetujuan
-          </h3>
+      {/* TABEL LIST */}
+      <div className="bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] shadow-sm overflow-hidden flex flex-col">
+        <div className="p-6 border-b border-[var(--card-border)] bg-[var(--muted)]/30 flex items-center gap-2">
+           <h2 className="text-lg font-black text-[var(--foreground)] tracking-tight">Daftar Tunggu Persetujuan</h2>
         </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        
+        <div className="overflow-x-auto w-full custom-scrollbar">
+          <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
-              <tr className="border-b border-[var(--card-border)] bg-[var(--muted)]/50">
-                <th className="p-4 text-xs font-bold uppercase text-[var(--muted-foreground)]">Investor</th>
-                <th className="p-4 text-xs font-bold uppercase text-[var(--muted-foreground)]">Akun & Broker</th>
-                <th className="p-4 text-xs font-bold uppercase text-[var(--muted-foreground)]">Durasi & Diskon</th>
-                <th className="p-4 text-xs font-bold uppercase text-[var(--muted-foreground)] text-right">Aksi</th>
+              <tr className="border-b border-[var(--card-border)] bg-[var(--background)]">
+                <th className="py-4 px-6 text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Data Investor</th>
+                <th className="py-4 px-6 text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Informasi Akun (MT5)</th>
+                <th className="py-4 px-6 text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Durasi & Diskon</th>
+                <th className="py-4 px-6 text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest text-right">Aksi Eksekusi</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-[var(--card-border)]">
+              
               {isLoading ? (
-                <tr>
-                  <td colSpan="4" className="p-10 text-center text-[var(--muted-foreground)]">Memuat antrean...</td>
-                </tr>
+                <tr><td colSpan="4" className="text-center py-10 font-bold text-[var(--primary)] animate-pulse">Memuat Antrean...</td></tr>
               ) : pendingList.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="p-20 text-center space-y-3">
-                    <AlertCircle size={48} className="mx-auto opacity-20" />
-                    <p className="text-[var(--muted-foreground)]">Tidak ada pendaftaran yang menunggu persetujuan.</p>
+                  <td colSpan="4" className="text-center py-16">
+                    <CheckCircle size={48} className="mx-auto text-[#10b981]/50 mb-3" />
+                    <p className="font-bold text-[var(--muted-foreground)]">Semua bersih! Tidak ada antrean lisensi saat ini.</p>
                   </td>
                 </tr>
               ) : (
                 pendingList.map((item) => (
-                  <tr key={item.id} className="border-b border-[var(--card-border)] hover:bg-[var(--muted)]/30 transition-colors">
-                    <td className="p-4">
-                      <div className="font-bold text-[var(--foreground)]">{item.investorName}</div>
-                      <div className="text-xs text-[var(--muted-foreground)]">{item.email}</div>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2 text-sm font-mono text-[var(--primary)] font-bold">
-                        <KeyRound size={14}/> {item.accountNumber}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-[var(--muted-foreground)] mt-1">
-                        <Server size={14}/> {item.brokerServer}
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="text-sm text-[var(--foreground)] font-medium">{item.durationMonths} Bulan</div>
-                      <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-orange-500/10 text-orange-500 text-[10px] font-bold mt-1 uppercase">
-                        <Tag size={10}/> Diskon: {item.finalDiscountPercent}%
+                  <tr key={item.id} className="hover:bg-[var(--muted)]/20 transition-colors">
+                    
+                    {/* KOLOM 1: DATA INVESTOR */}
+                    <td className="py-5 px-6">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-bold text-[var(--foreground)] flex items-center gap-2">
+                          <User size={14} className="text-[var(--primary)]"/> {item.investor_name || '-'}
+                        </span>
+                        <span className="text-xs font-medium text-[var(--muted-foreground)]">{item.email}</span>
+                        {/* BADGE PENGAJU (ADMIN) */}
+                        <div className="mt-2 inline-flex">
+                          <span className="bg-purple-500/10 text-purple-500 border border-purple-500/20 text-[9px] font-black uppercase px-2 py-1 rounded-md tracking-wider">
+                            By Admin: {item.requested_by}
+                          </span>
+                        </div>
                       </div>
                     </td>
-                    <td className="p-4 text-right space-x-2">
-                      <button 
-                        onClick={() => handleReject(item)}
-                        disabled={processingId === item.id}
-                        className="p-2.5 text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
-                        title="Tolak"
-                      >
-                        <XCircle size={22} />
-                      </button>
-                      <button 
-                        onClick={() => handleApprove(item)}
-                        disabled={processingId === item.id}
-                        className="bg-[var(--primary)] text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:scale-105 transition-all inline-flex items-center gap-2 disabled:opacity-50"
-                      >
-                        {processingId === item.id ? "Processing..." : (
-                          <>
-                            <CheckCircle size={18} /> Approve
-                          </>
-                        )}
-                      </button>
+
+                    {/* KOLOM 2: AKUN & BROKER */}
+                    <td className="py-5 px-6">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <KeyRound size={14} className="text-orange-500" />
+                          <span className="font-black text-[var(--foreground)] tracking-tight">{item.account_number}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Server size={14} className="text-blue-500" />
+                          <span className="text-xs font-bold text-[var(--muted-foreground)]">{item.broker_server}</span>
+                        </div>
+                      </div>
                     </td>
+
+                    {/* KOLOM 3: DURASI & DISKON */}
+                    <td className="py-5 px-6">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <Clock size={14} className="text-[var(--foreground)]" />
+                          <span className="text-sm font-bold text-[var(--foreground)]">{item.duration_months} Bulan</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Tag size={14} className="text-amber-500" />
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${item.discount_applied > 0 ? 'bg-amber-500/10 text-amber-500' : 'bg-[var(--muted)] text-[var(--muted-foreground)]'}`}>
+                            Diskon: {item.discount_applied}%
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* KOLOM 4: AKSI */}
+                    <td className="py-5 px-6 text-right">
+                      <div className="flex items-center justify-end gap-3">
+                        <button 
+                          onClick={() => handleReject(item.id, item.account_number)} 
+                          disabled={processingId === item.id}
+                          className="p-2 text-red-500 hover:bg-red-500/10 rounded-full transition-colors disabled:opacity-30"
+                          title="Tolak & Hapus"
+                        >
+                          <XCircle size={24} />
+                        </button>
+                        
+                        <button 
+                          onClick={() => handleApprove(item)} 
+                          disabled={processingId === item.id}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl shadow-md transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
+                        >
+                          <CheckCircle size={16} />
+                          {processingId === item.id ? 'Memproses...' : 'Approve'}
+                        </button>
+                      </div>
+                    </td>
+
                   </tr>
                 ))
               )}
