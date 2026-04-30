@@ -3,24 +3,49 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react"; // Tambahkan ini
 import { 
   LayoutDashboard, Key, ShieldCheck, BarChart, 
-  AlertCircle, LogOut, UserPlus 
+  AlertCircle, LogOut, UserPlus, Sun, Moon // Tambahkan Sun & Moon
 } from "lucide-react";
 
-// Import AuthProvider & Firebase Auth
-import { AuthProvider, useAuth } from "@/app/context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { auth } from "../lib/firebase";
 import { signOut } from "firebase/auth";
 
 const inter = Inter({ subsets: ["latin"] });
 
-// Komponen Navbar yang Dinamis berdasarkan Role
 function AppNavbar() {
   const pathname = usePathname();
   const { user, role } = useAuth();
+  
+  // State untuk Theme Toggle
+  const [isDark, setIsDark] = useState(true);
 
-  // Sembunyikan Navbar jika sedang di halaman Login
+  // Inisialisasi Tema saat halaman dimuat
+  useEffect(() => {
+    if (localStorage.getItem('theme') === 'light') {
+      setIsDark(false);
+      document.documentElement.classList.remove('dark');
+    } else {
+      setIsDark(true);
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
+  // Fungsi mengubah Tema
+  const toggleTheme = () => {
+    if (isDark) {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+      setIsDark(false);
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+      setIsDark(true);
+    }
+  };
+
   if (pathname === '/login') return null;
 
   const handleLogout = async () => {
@@ -30,62 +55,63 @@ function AppNavbar() {
   };
 
   return (
-    <nav className="bg-white dark:bg-[#1e2330] border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50">
+    <nav className="bg-[var(--card-bg)] border-b border-[var(--card-border)] sticky top-0 z-50 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           
-          {/* Logo */}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-emerald-500 rounded-lg flex items-center justify-center shadow-md">
+            <div className="w-8 h-8 bg-[var(--primary)] rounded-lg flex items-center justify-center shadow-md">
               <span className="text-white font-black text-xs">KRX</span>
             </div>
-            <span className="font-bold text-slate-800 dark:text-white hidden sm:block tracking-tight">
-              PRO'V17 <span className="font-normal text-slate-500">MONITORING</span>
+            <span className="font-bold text-[var(--foreground)] hidden sm:block tracking-tight">
+              DASHBOARD |   
+             <span className="font-normal text-[var(--muted-foreground)]"> MONITORING</span>
             </span>
           </div>
 
-          {/* Menu Navigasi - Tampil sesuai Role */}
           <div className="flex items-center gap-1 sm:gap-2">
             
-            {/* Menu Umum (Bisa dilihat Investor & Admin) */}
-            <Link href="/" className={`px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg flex items-center gap-1.5 transition-colors ${pathname === '/' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-white'}`}>
+            <Link href="/" className={`px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg flex items-center gap-1.5 transition-colors ${pathname === '/' ? 'bg-[var(--muted)] text-[var(--primary)]' : 'text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]'}`}>
               <LayoutDashboard size={16}/> <span className="hidden md:inline">Dashboard</span>
             </Link>
             
-            <Link href="/analytics" className={`px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg flex items-center gap-1.5 transition-colors ${pathname === '/analytics' ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-white'}`}>
+            <Link href="/analytics" className={`px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg flex items-center gap-1.5 transition-colors ${pathname === '/analytics' ? 'bg-[var(--muted)] text-[var(--primary)]' : 'text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]'}`}>
               <BarChart size={16}/> <span className="hidden md:inline">Analytics</span>
             </Link>
 
-            {/* Menu Khusus ADMIN & SUPER ADMIN */}
             {(role === 'admin' || role === 'super_admin') && (
               <>
-                <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block"></div>
+                <div className="w-px h-6 bg-[var(--card-border)] mx-1 hidden sm:block"></div>
                 
-                <Link href="/create-license" className="px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg text-slate-500 flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-white transition">
+                <Link href="/create-license" className="px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg text-[var(--muted-foreground)] flex items-center gap-1.5 hover:bg-[var(--muted)] hover:text-[var(--foreground)] transition">
                   <Key size={16}/> <span className="hidden md:inline">License</span>
                 </Link>
 
-                <Link href="/license-manager" className="px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg text-slate-500 flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-white transition">
+                <Link href="/license-manager" className="px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg text-[var(--muted-foreground)] flex items-center gap-1.5 hover:bg-[var(--muted)] hover:text-[var(--foreground)] transition">
                   <ShieldCheck size={16}/> <span className="hidden md:inline">Manager</span>
                 </Link>
 
-                <Link href="/approval-center" className="px-3 py-2 text-xs sm:text-sm font-bold rounded-lg bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400 flex items-center gap-1.5 border border-orange-200 dark:border-orange-500/20 hover:bg-orange-100 dark:hover:bg-orange-500/20 transition">
+                <Link href="/approval-center" className="px-3 py-2 text-xs sm:text-sm font-bold rounded-lg bg-orange-500/10 text-orange-500 flex items-center gap-1.5 hover:bg-orange-500/20 transition">
                   <AlertCircle size={16}/> <span className="hidden md:inline">Approval</span>
                 </Link>
               </>
             )}
 
-            {/* Menu Eksklusif SUPER ADMIN (Untuk mendaftarkan user baru) */}
             {role === 'super_admin' && (
-              <Link href="/user-management" className="px-3 py-2 text-xs sm:text-sm font-bold rounded-lg bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 flex items-center gap-1.5 border border-purple-200 dark:border-purple-500/20 hover:bg-purple-100 dark:hover:bg-purple-500/20 transition ml-1">
+              <Link href="/user-management" className={`px-3 py-2 text-xs sm:text-sm font-bold rounded-lg flex items-center gap-1.5 transition ml-1 ${pathname === '/user-management' ? 'bg-purple-500 text-white' : 'bg-purple-500/10 text-purple-500 hover:bg-purple-500/20'}`}>
                 <UserPlus size={16}/> <span className="hidden md:inline">Users</span>
               </Link>
             )}
 
-            <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+            <div className="w-px h-6 bg-[var(--card-border)] mx-1"></div>
             
-            {/* Tombol Logout */}
-            <button onClick={handleLogout} className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors" title="Logout">
+            {/* TOGGLE THEME BUTTON */}
+            <button onClick={toggleTheme} className="p-2 text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)] rounded-lg transition-colors" title="Toggle Light/Dark Mode">
+              {isDark ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+
+            {/* LOGOUT BUTTON */}
+            <button onClick={handleLogout} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors" title="Logout">
               <LogOut size={18} />
             </button>
 
@@ -98,9 +124,8 @@ function AppNavbar() {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} bg-slate-50 dark:bg-[#0f111a] text-slate-800 dark:text-slate-200`}>
-        {/* Bungkus seluruh aplikasi dengan AuthProvider */}
+    <html lang="en" className="dark">
+      <body className={`${inter.className} bg-[var(--background)] text-[var(--foreground)]`}>
         <AuthProvider>
           <AppNavbar />
           <main className="min-h-screen">

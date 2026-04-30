@@ -9,15 +9,12 @@ import { db } from "../../lib/firebase";
 import { ref, onValue } from "firebase/database";
 
 export default function AnalyticsPage() {
-  // --- STATE ---
   const [allAccountsData, setAllAccountsData] = useState({});
   const [accountsList, setAccountsList] = useState([]);
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-
   const [viewDate, setViewDate] = useState(new Date()); 
 
-  // --- FETCH DATA FIREBASE ---
   useEffect(() => {
     const accountsRef = ref(db, 'account_data');
     const unsubscribe = onValue(accountsRef, (snapshot) => {
@@ -35,7 +32,6 @@ export default function AnalyticsPage() {
     return () => unsubscribe();
   }, [selectedAccountId]);
 
-  // --- LOGIKA WAKTU & NAVIGASI ---
   const currentMonth = viewDate.getMonth();
   const currentYear = viewDate.getFullYear();
   const monthName = viewDate.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
@@ -43,17 +39,23 @@ export default function AnalyticsPage() {
   const goToPrevMonth = () => setViewDate(new Date(currentYear, currentMonth - 1, 1));
   const goToNextMonth = () => setViewDate(new Date(currentYear, currentMonth + 1, 1));
 
-  // --- PEMROSESAN DATA SNAPSHOT (MATEMATIKA ZONA WAKTU MUTLAK) ---
+  // --- PEMROSESAN DATA SNAPSHOT (FIX DETIK VS MILIDETIK) ---
   const snapshots = allAccountsData[selectedAccountId]?.snapshots || {};
   const processedSnapshots = {};
 
   Object.keys(snapshots).forEach(tsKey => {
-    // Tambah tepat 8 Jam (28.800.000 milidetik) ke waktu UTC EA untuk konversi ke GMT+8
-    const exactDateWITA = new Date(parseInt(tsKey) + 28800000); 
+    let timeMs = parseInt(tsKey);
     
-    // Gunakan getUTC agar browser tidak mencampurinya dengan jam lokal Anda
+    // Jika EA mengirim format DETIK (10 digit angka), kalikan 1000 jadi MILIDETIK
+    if (timeMs < 10000000000) {
+      timeMs = timeMs * 1000;
+    }
+
+    // Tambah 8 jam (28.800.000 ms) untuk konversi ke WITA / GMT+8 Mutlak
+    const exactDateWITA = new Date(timeMs + 28800000); 
+    
     const y = exactDateWITA.getUTCFullYear();
-    const m = exactDateWITA.getUTCMonth(); // Output: 0 sampai 11
+    const m = exactDateWITA.getUTCMonth(); 
     const d = exactDateWITA.getUTCDate();
     
     processedSnapshots[`${y}-${m}-${d}`] = snapshots[tsKey];
@@ -86,23 +88,19 @@ export default function AnalyticsPage() {
       if (isFuture) {
         status = 'future';
       } else if (dayData) {
-        // AMBIL DATA EA JIKA ADA
-        profit = dayData.daily_profit || 0;
-        growth = dayData.daily_growth_percent || 0;
-        lot = dayData.daily_lots || 0;
+        // Fallback property keys (Mencegah error jika EA memakai nama variabel berbeda)
+        profit = dayData.daily_profit || dayData.profit || 0;
+        growth = dayData.daily_growth_percent || dayData.growth || dayData.growth_percent || 0;
+        lot = dayData.daily_lots || dayData.lot || dayData.lots || 0;
         
         if (profit > 0) status = 'win';
         else if (profit < 0) status = 'loss';
-        // Biarkan 'neutral' jika profit persis 0.00 (impas)
       }
 
       days.push({ day: i, empty: false, status, profit, growth, lot });
     }
 
-    // Penuhkan grid kosong di akhir
-    while (days.length % 7 !== 0) {
-      days.push({ empty: true });
-    }
+    while (days.length % 7 !== 0) days.push({ empty: true });
     return days;
   };
 
@@ -116,8 +114,7 @@ export default function AnalyticsPage() {
     if (!d.empty && d.status !== 'future' && (d.profit !== 0 || d.lot > 0)) {
       totalTradingDays++;
       if (d.profit > 0) {
-        grossProfit += d.profit; 
-        winDays++;
+        grossProfit += d.profit; winDays++;
         if (d.profit > maxDailyProfit) maxDailyProfit = d.profit;
       } else if (d.profit < 0) {
         const absLoss = Math.abs(d.profit);
@@ -138,7 +135,7 @@ export default function AnalyticsPage() {
   return (
     <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto font-sans transition-colors duration-300">
       
-      {/* 🚀 HEADER & ACCOUNT SELECTOR */}
+      {/* HEADER & ACCOUNT SELECTOR */}
       <div className="bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] p-6 md:p-8 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
          <div className="flex items-center gap-5 w-full md:w-auto">
             <div className="p-4 rounded-2xl bg-[var(--primary)]/10 text-[var(--primary)] shadow-inner"><BarChart size={36}/></div>
@@ -163,7 +160,7 @@ export default function AnalyticsPage() {
          </div>
       </div>
 
-      {/* 🚀 NAVIGATOR BULAN */}
+      {/* NAVIGATOR BULAN */}
       <div className="flex justify-between items-center bg-[var(--card-bg)] p-4 rounded-2xl border border-[var(--card-border)] shadow-sm">
          <button onClick={goToPrevMonth} className="p-2 hover:bg-[var(--muted)] rounded-xl transition-colors text-[var(--foreground)] border border-[var(--card-border)] shadow-sm">
             <ChevronLeft size={20}/>
@@ -177,7 +174,7 @@ export default function AnalyticsPage() {
          </button>
       </div>
 
-      {/* 🚀 FUND MANAGER SUMMARY */}
+      {/* FUND MANAGER SUMMARY */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
           { label: "Net Profit", val: formatCur(netProfit), icon: BadgeDollarSign, c: "text-blue-500" },
@@ -214,15 +211,15 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* 🚀 HEATMAP KALENDER DINAMIS */}
+      {/* HEATMAP KALENDER DINAMIS (ANTI-PURGE INLINE STYLES) */}
       <div className="bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] p-6 md:p-8 shadow-sm relative overflow-hidden transition-colors">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <h3 className="font-bold text-xl md:text-2xl text-[var(--foreground)] flex items-center gap-2 tracking-tight">
             <CalendarDays className="text-[var(--primary)]" /> {monthName} Heatmap
           </h3>
           <div className="flex items-center gap-4 text-[10px] font-bold bg-[var(--background)] px-4 py-2 rounded-xl border border-[var(--card-border)] shadow-sm">
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500"></div> PROFIT</div>
-            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-red-500"></div> LOSS</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#10b981]"></div> PROFIT</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#ef4444]"></div> LOSS</div>
           </div>
         </div>
 
@@ -244,11 +241,14 @@ export default function AnalyticsPage() {
                 return (
                   <div 
                     key={i} 
+                    style={{
+                      ...(isWin ? { backgroundColor: '#10b981', borderColor: '#10b981', color: 'white' } : {}),
+                      ...(isLoss ? { backgroundColor: '#ef4444', borderColor: '#ef4444', color: 'white' } : {})
+                    }}
                     className={`
                       relative flex flex-col justify-between p-3 rounded-2xl aspect-[4/3] transition-all border
                       ${d.empty ? 'opacity-0 pointer-events-none border-transparent' : 'hover:-translate-y-1 hover:shadow-lg'}
-                      ${isWin ? 'bg-green-500 border-green-500 shadow-md' : ''}
-                      ${isLoss ? 'bg-red-500 border-red-500 shadow-md' : ''}
+                      ${isWin || isLoss ? 'shadow-md text-white' : ''}
                       ${isNeutral ? 'bg-[var(--background)] border-[var(--card-border)]' : ''}
                       ${isFuture ? 'bg-[var(--muted)]/20 border-[var(--card-border)] border-dashed opacity-50' : ''}
                     `}

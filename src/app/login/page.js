@@ -13,8 +13,8 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  // Kredensial Hardcode untuk Super Admin Pertama Kali
-  const SUPER_ADMIN_EMAIL = "admin@kiroix.com";
+  // Kredensial Hardcode untuk Super Admin
+  const SUPER_ADMIN_EMAIL = "admin@krx.com";
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -26,28 +26,26 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 2. Cek Role di Realtime Database
+      // 2. Tentukan Role secara mutlak (Anti Huruf Besar/Kecil)
+      let finalRole = "investor"; 
+      if (user.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+        finalRole = "super_admin";
+      }
+
+      // 3. Cek di Realtime Database
       const userRef = ref(db, `users/${user.uid}`);
       const snapshot = await get(userRef);
 
-      if (!snapshot.exists()) {
-        // Jika user belum ada di DB (baru pertama kali login)
-        let role = "investor"; // Default
-        
-        // Logika Pembeda Super Admin vs Admin/Investor
-        if (user.email === SUPER_ADMIN_EMAIL) {
-          role = "super_admin";
-        }
-
-        // Simpan data role ke Database
+      // 4. LOGIKA SUPER PENTING: Paksa update jika dia super_admin ATAU user baru
+      if (!snapshot.exists() || finalRole === "super_admin") {
         await set(userRef, {
           email: user.email,
-          role: role,
-          createdAt: new Date().toISOString()
+          role: finalRole,
+          lastLogin: new Date().toISOString()
         });
       }
 
-      // 3. Arahkan ke Dashboard
+      // 5. Arahkan ke Dashboard
       router.push("/");
       
     } catch (err) {
@@ -99,7 +97,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@kiroix.com"
+                placeholder="admin@krx.com"
                 className="w-full bg-[var(--background)] border border-[var(--card-border)] text-[var(--foreground)] text-sm font-bold rounded-xl pl-11 pr-4 py-3.5 outline-none focus:ring-2 focus:ring-[var(--primary)] transition-all placeholder:font-normal placeholder:text-[var(--muted-foreground)] placeholder:opacity-50"
               />
             </div>
