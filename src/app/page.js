@@ -20,8 +20,7 @@ const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
 
 // --- DICTIONARY LOTTIE URL (EMBED DARI LUAR) ---
 const animUrl = {
-  // Anda bisa mengganti URL di bawah ini dengan URL animasi pilihan Anda dari Lottiefiles.com
-  SCANNING: "https://lottie.host/9e0004ad-6e06-4b8c-85a0-9e6b72a088fb/0R7f5c0NpH.json",       // Radar Berputar
+  SCANNING: "", // Dikosongkan karena kita sekarang menggunakan Pure CSS Super Smooth Radar
   AI_ANALYZING: "https://lottie.host/28f9c14c-1120-4318-80f2-b8832a81fcd9/4fWqC29l7L.json",   // Otak AI / Loading
   ENTRY_EXECUTION: "https://lottie.host/d4615a97-9e73-4ea2-80ea-7debc24a187f/VbWkUaM98y.json", // Laser / Eksekusi
   SHIELD_ACTIVE: "https://lottie.host/81b22295-d2fc-4b71-91a7-5ba7b2c0f6ec/0F5S5BfC0t.json",   // Perisai Biru (BE/Trailing)
@@ -70,8 +69,8 @@ export default function Dashboard() {
 
   // --- EFFECT UNTUK KONEKSI WEBSOCKET (VPS) ---
   useEffect(() => {
-    // PENTING: GANTI IP INI DENGAN IP PUBLIK VPS ANDA (Misal: http://103.45.xx.xx:5000)
-    const socket = io('http://IP_PUBLIK_VPS_ANDA:5000');
+    // PENTING: GANTI IP INI DENGAN IP PUBLIK VPS ANDA JIKA BERUBAH
+    const socket = io('http://118.193.78.150:5000');
 
     socket.on('connect', () => {
       console.log('Terhubung dengan Otak AI di VPS!');
@@ -164,7 +163,6 @@ export default function Dashboard() {
       };
     });
 
-  // --- FUNGSI PEMILIHAN ANIMASI ROBOT (BERDASARKAN URL) ---
   const renderRobotAnimation = () => {
     switch (robotState) {
       case 'AI_ANALYZING': return animUrl.AI_ANALYZING;
@@ -172,7 +170,7 @@ export default function Dashboard() {
       case 'SHIELD_ACTIVE': return animUrl.SHIELD_ACTIVE;
       case 'PROFIT_SECURED': return animUrl.PROFIT_SECURED;
       case 'SCANNING':
-      default: return animUrl.SCANNING;
+      default: return null; 
     }
   };
 
@@ -260,21 +258,44 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* --- ZONA AI COMMAND CENTER --- */}
+      {/* --- ZONA AI COMMAND CENTER PURE CSS --- */}
       <div className="bg-[var(--card-bg)] border border-[var(--primary)]/30 rounded-3xl p-4 md:p-6 shadow-[0_0_15px_rgba(59,130,246,0.1)] flex flex-col md:flex-row items-center gap-6 relative overflow-hidden transition-all duration-300">
         
-        {/* Lottie Container (Menarik data menggunakan path URL) */}
-        <div className="w-24 h-24 md:w-32 md:h-32 flex-shrink-0 bg-gray-900 rounded-full border-4 border-[var(--primary)] shadow-[0_0_20px_rgba(59,130,246,0.5)] flex items-center justify-center p-2">
-          {renderRobotAnimation() ? (
+        {/* Kontainer Animasi Hibrida (CSS + Lottie) */}
+        <div className="w-24 h-24 md:w-32 md:h-32 flex-shrink-0 bg-gray-900 rounded-full border-4 border-blue-500/50 shadow-[0_0_30px_rgba(59,130,246,0.4)] flex items-center justify-center p-2 overflow-hidden relative">
+          
+          {robotState === 'SCANNING' ? (
+            /* --- RADAR PURE CSS (100% Smooth 60FPS) --- */
+            <>
+              {/* Sapuan Radar Berputar (The Sweeper) */}
+              <div className="absolute inset-0 w-full h-full animate-[spin_2s_linear_infinite] rounded-full bg-[conic-gradient(from_0deg,transparent_70%,rgba(59,130,246,0.8)_100%)]"></div>
+              
+              {/* Lingkaran Konsentris (Jaring Target) */}
+              <div className="absolute inset-2 md:inset-3 rounded-full border border-blue-400/30"></div>
+              <div className="absolute inset-6 md:inset-8 rounded-full border border-blue-400/10"></div>
+              
+              {/* Garis Crosshair (Vertikal & Horizontal) */}
+              <div className="absolute w-full h-[1px] bg-blue-400/20"></div>
+              <div className="absolute h-full w-[1px] bg-blue-400/20"></div>
+              
+              {/* Core AI Icon */}
+              <div className="relative z-10 bg-gray-900 p-2 rounded-full border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.6)]">
+                <Cpu size={24} className="text-blue-400 animate-pulse" />
+              </div>
+            </>
+          ) : renderRobotAnimation() ? (
+            /* --- LOTTIE FALLBACK UNTUK LASER / SHIELD --- */
             <Lottie 
-              key={robotState} // Kunci ini memaksa animasi me-refresh saat URL berubah
+              key={robotState} 
               path={renderRobotAnimation()} 
-              loop={true} 
-              style={{ width: '100%', height: '100%' }} 
+              loop={true}
+              autoplay={true} 
+              style={{ width: '100%', height: '100%', position: 'relative', zIndex: 10 }} 
             />
           ) : (
             <Cpu size={40} className="text-blue-500 animate-pulse" />
           )}
+
         </div>
         
         {/* Status Text AI */}
