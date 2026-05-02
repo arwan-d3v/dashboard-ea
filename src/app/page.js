@@ -1,19 +1,14 @@
-/**
- * ============================================================================
- * [FRONTEND] AGENTIC AI COMMAND CENTER - DASHBOARD
- * Description: Dashboard monitoring real-time Next.js yang terhubung dengan
- *              MT5 VPS via WebSocket. Menampilkan status AI, portofolio, 
- *              Pure CSS Scanner, dan open posisi secara live.
- * ============================================================================
- */
-
 "use client";
-import { useState, useEffect } from "react";
+
+// ============================================================================
+// SECTION 1: IMPORTS & DEPENDENCIES
+// ============================================================================
+import { useState, useEffect, useRef } from "react";
 import { 
   TrendingUp, TrendingDown, DollarSign, Activity, 
   Wallet, ArrowDownToLine, ArrowUpFromLine, 
   CalendarDays, BarChart3, Clock, AlertTriangle, 
-  Server, User, ChevronDown, Cpu
+  Server, User, ChevronDown, Cpu, Terminal
 } from "lucide-react";
 import { 
   Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart 
@@ -25,11 +20,12 @@ import dynamic from 'next/dynamic';
 
 const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
 
-// ==========================================
-// CONFIG 1: ANIMASI LOTTIE & UI TEXT DICTIONARY
-// ==========================================
+
+// ============================================================================
+// SECTION 2: CONFIGURATION & DICTIONARIES
+// ============================================================================
 const animUrl = {
-  SCANNING: "", // Pure CSS Super Smooth Radar
+  SCANNING: "", 
   AI_ANALYZING: "https://lottie.host/28f9c14c-1120-4318-80f2-b8832a81fcd9/4fWqC29l7L.json",   
   ENTRY_EXECUTION: "https://lottie.host/d4615a97-9e73-4ea2-80ea-7debc24a187f/VbWkUaM98y.json", 
   SHIELD_ACTIVE: "https://lottie.host/81b22295-d2fc-4b71-91a7-5ba7b2c0f6ec/0F5S5BfC0t.json",   
@@ -59,12 +55,20 @@ const dict = {
     chartTitle: "Pertumbuhan Saldo vs Ekuitas", dailyPerf: "Performa Harian (5 Hari)",
     livePositions: "Posisi Terbuka Langsung", noPositions: "Tidak ada posisi terbuka saat ini. Menunggu sinyal EA...",
     ticket: "Tiket / Simbol", type: "Tipe", volume: "Volume", openPrice: "Harga Buka",
-    curPrice: "Harga Saat Saat Ini", profit: "Profit (PnL)",
+    curPrice: "Harga Saat Ini", profit: "Profit (PnL)",
     daysShort: { sun: "MIN", mon: "SEN", tue: "SEL", wed: "RAB", thu: "KAM", fri: "JUM", sat: "SAB" }
   }
 };
 
+
+// ============================================================================
+// SECTION 3: MAIN DASHBOARD COMPONENT
+// ============================================================================
 export default function Dashboard() {
+  
+  // ==========================================
+  // SECTION 4: STATE MANAGEMENT
+  // ==========================================
   const [lang, setLang] = useState("en"); 
   const t = dict[lang]; 
 
@@ -73,37 +77,55 @@ export default function Dashboard() {
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
+  // Status & Terminal VPS State
   const [robotState, setRobotState] = useState('SCANNING');
   const [tradeInfo, setTradeInfo] = useState('Scanning XAUUSD...');
+  const [terminalLogs, setTerminalLogs] = useState([
+    { time: new Date().toLocaleTimeString('en-US', { hour12: false }), text: "SYSTEM BOOT: Initializing Agentic AI Shell...", type: "SYSTEM" }
+  ]);
+  const terminalEndRef = useRef(null);
+
 
   // ==========================================
-  // EFFECT 1: KONEKSI WEBSOCKET KE VPS
+  // SECTION 5: API & WEBSOCKET HOOKS
   // ==========================================
   useEffect(() => {
-    const socket = io('http://118.193.78.150:5000');
+    const socket = io('http://118.193.78.150:5000'); 
+
+    const addLog = (text, type) => {
+      setTerminalLogs(prev => {
+        const newLogs = [...prev, { time: new Date().toLocaleTimeString('en-US', { hour12: false }), text, type }];
+        return newLogs.slice(-30); 
+      });
+    };
 
     socket.on('connect', () => {
-      console.log('Terhubung dengan Otak AI di VPS!');
       setRobotState('SCANNING');
       setTradeInfo('Koneksi Neural Terhubung ke VPS.');
+      addLog("Koneksi WebSocket berhasil terjalin. Menunggu sinyal market...", "SCANNING");
     });
 
     socket.on('robot_status_update', (data) => {
       if (data.status) setRobotState(data.status);
-      if (data.info) setTradeInfo(data.info);
+      if (data.info) {
+        setTradeInfo(data.info);
+        addLog(data.info, data.status);
+      }
     });
 
     socket.on('disconnect', () => {
       setRobotState('SYSTEM_ERROR');
       setTradeInfo('Koneksi terputus dari VPS. Mencoba menyambung kembali...');
+      addLog("KONEKSI TERPUTUS! Server VPS (Port 5000) tidak merespons.", "SYSTEM_ERROR");
     });
 
     return () => socket.disconnect();
   }, []);
 
-  // ==========================================
-  // EFFECT 2: KONEKSI FIREBASE (DATA MT5)
-  // ==========================================
+  useEffect(() => {
+    terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [terminalLogs]);
+
   useEffect(() => {
     const accountsRef = ref(db, 'account_data');
     const unsubscribe = onValue(accountsRef, (snapshot) => {
@@ -124,8 +146,9 @@ export default function Dashboard() {
     return () => unsubscribe();
   }, [selectedAccountId]);
 
+
   // ==========================================
-  // HELPER & DATA FORMATTING
+  // SECTION 6: DATA FORMATTING & CALCULATIONS
   // ==========================================
   const currentAccountData = allAccountsData[selectedAccountId] || {};
   const liveData = currentAccountData.realtime_stats || null;
@@ -148,6 +171,7 @@ export default function Dashboard() {
   const initDepo = liveData?.initial_deposit || 10000;
   const curBal = liveData?.balance || 10000;
   const curEq = liveData?.equity || 10000;
+  
   const mockChartData = [
     { date: 'Start', balance: initDepo, equity: initDepo },
     { date: 'Wk 1', balance: initDepo + (curBal-initDepo)*0.15, equity: initDepo + (curEq-initDepo)*0.10 },
@@ -191,6 +215,17 @@ export default function Dashboard() {
     }
   };
 
+  const getTerminalColor = (type) => {
+    switch(type) {
+      case 'AI_ANALYZING': return 'text-purple-400';
+      case 'ENTRY_EXECUTION': return 'text-orange-400 font-bold';
+      case 'SHIELD_ACTIVE': return 'text-cyan-400';
+      case 'PROFIT_SECURED': return 'text-green-400 font-bold shadow-green-500/50 drop-shadow-md';
+      case 'SYSTEM_ERROR': return 'text-red-500 font-black uppercase'; 
+      default: return 'text-blue-300'; 
+    }
+  }
+
   if (isLoading) return <div className="flex justify-center items-center h-screen font-bold text-[var(--primary)] animate-pulse text-xl">Connecting to Server...</div>;
   
   if (accountsList.length === 0 || !liveData) return (
@@ -200,10 +235,14 @@ export default function Dashboard() {
     </div>
   );
 
+
+  // ==========================================
+  // SECTION 7: UI RENDERING (THE VIEW)
+  // ==========================================
   return (
     <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto font-sans transition-colors duration-300">
       
-      {/* UI: HEADER PORTFOLIO */}
+      {/* 7.1 HEADER PORTFOLIO & KONTROL AKUN */}
       <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-3xl p-6 md:p-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 shadow-sm relative overflow-hidden">
         
         <div className="z-10 w-full lg:w-auto">
@@ -270,51 +309,116 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* UI: ZONA AI COMMAND CENTER */}
-      <div className={`border rounded-3xl p-4 md:p-6 shadow-sm flex flex-col md:flex-row items-center gap-6 relative overflow-hidden transition-all duration-300
-        ${robotState === 'SYSTEM_ERROR' ? 'bg-red-500/10 border-red-500/50' : 'bg-[var(--card-bg)] border-[var(--primary)]/30 shadow-[0_0_15px_rgba(59,130,246,0.1)]'}`}
+      
+      {/* 7.2 AI COMMAND CENTER (ADAPTIVE LIGHT/DARK MODE) */}
+      <div className={`border rounded-3xl p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 relative overflow-hidden transition-all duration-500
+        ${robotState === 'SYSTEM_ERROR' 
+          ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/50 shadow-md' 
+          : 'bg-[var(--card-bg)] border-[var(--card-border)] dark:border-[var(--primary)]/30 shadow-lg dark:shadow-[0_0_20px_rgba(59,130,246,0.15)]'}`}
       >
-        <div className={`w-24 h-24 md:w-32 md:h-32 flex-shrink-0 bg-gray-900 rounded-full border-4 flex items-center justify-center p-2 overflow-hidden relative
-          ${robotState === 'SYSTEM_ERROR' ? 'border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.4)]' : 'border-blue-500/50 shadow-[0_0_30px_rgba(59,130,246,0.4)]'}`}
-        >
-          {robotState === 'SCANNING' ? (
-            <>
-              <div className="absolute inset-0 w-full h-full animate-[spin_2s_linear_infinite] rounded-full bg-[conic-gradient(from_0deg,transparent_70%,rgba(59,130,246,0.8)_100%)]"></div>
-              <div className="absolute inset-2 md:inset-3 rounded-full border border-blue-400/30"></div>
-              <div className="absolute inset-6 md:inset-8 rounded-full border border-blue-400/10"></div>
-              <div className="absolute w-full h-[1px] bg-blue-400/20"></div>
-              <div className="absolute h-full w-[1px] bg-blue-400/20"></div>
-              <div className="relative z-10 bg-gray-900 p-2 rounded-full border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.6)]">
-                <Cpu size={24} className="text-blue-400 animate-pulse" />
-              </div>
-            </>
-          ) : renderRobotAnimation() ? (
-            <Lottie key={robotState} path={renderRobotAnimation()} loop={true} autoplay={true} style={{ width: '100%', height: '100%', position: 'relative', zIndex: 10 }} />
-          ) : (
-            <Cpu size={40} className={robotState === 'SYSTEM_ERROR' ? "text-red-500 animate-pulse" : "text-blue-500 animate-pulse"} />
-          )}
+        {/* HUD TARGETING BRACKETS (Dekorasi) */}
+        <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-[var(--primary)]/30 dark:border-[var(--primary)]/40 rounded-tl-lg pointer-events-none"></div>
+        <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-[var(--primary)]/30 dark:border-[var(--primary)]/40 rounded-tr-lg pointer-events-none"></div>
+        <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-[var(--primary)]/30 dark:border-[var(--primary)]/40 rounded-bl-lg pointer-events-none"></div>
+        <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-[var(--primary)]/30 dark:border-[var(--primary)]/40 rounded-br-lg pointer-events-none"></div>
+
+        {/* Panel Kiri: Robot & Status */}
+        <div className="flex flex-col items-center justify-center text-center space-y-5 relative z-10">
+          <div className="relative">
+            {/* Outer Orbit Ring Animasi */}
+            <div className="absolute -inset-3 rounded-full border-[1.5px] border-dashed border-blue-400/40 dark:border-blue-500/30 animate-[spin_15s_linear_infinite] pointer-events-none hidden md:block"></div>
+            
+            <div className={`w-24 h-24 md:w-32 md:h-32 flex-shrink-0 bg-slate-50 dark:bg-gray-900 rounded-full border-4 flex items-center justify-center p-2 overflow-hidden relative z-10 transition-colors
+              ${robotState === 'SYSTEM_ERROR' 
+                ? 'border-red-400 dark:border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.3)] dark:shadow-[0_0_30px_rgba(239,68,68,0.5)]' 
+                : 'border-blue-300 dark:border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.2)] dark:shadow-[0_0_30px_rgba(59,130,246,0.5)]'}`}
+            >
+              {robotState === 'SCANNING' ? (
+                <>
+                  <div className="absolute inset-0 w-full h-full animate-[spin_2s_linear_infinite] rounded-full bg-[conic-gradient(from_0deg,transparent_70%,rgba(59,130,246,0.5)_100%)] dark:bg-[conic-gradient(from_0deg,transparent_70%,rgba(59,130,246,0.8)_100%)]"></div>
+                  <div className="absolute inset-2 md:inset-3 rounded-full border border-blue-300/50 dark:border-blue-400/30"></div>
+                  <div className="absolute inset-6 md:inset-8 rounded-full border border-blue-300/30 dark:border-blue-400/10"></div>
+                  <div className="absolute w-full h-[1px] bg-blue-300/50 dark:bg-blue-400/20"></div>
+                  <div className="absolute h-full w-[1px] bg-blue-300/50 dark:bg-blue-400/20"></div>
+                  <div className="relative z-10 bg-white dark:bg-gray-900 p-2 rounded-full border border-blue-200 dark:border-blue-500/50 shadow-sm dark:shadow-[0_0_15px_rgba(59,130,246,0.6)]">
+                    <Cpu size={24} className="text-blue-500 dark:text-blue-400 animate-pulse" />
+                  </div>
+                </>
+              ) : renderRobotAnimation() ? (
+                <Lottie key={robotState} path={renderRobotAnimation()} loop={true} autoplay={true} style={{ width: '100%', height: '100%', position: 'relative', zIndex: 10 }} />
+              ) : (
+                <Cpu size={40} className={robotState === 'SYSTEM_ERROR' ? "text-red-500 animate-pulse" : "text-blue-500 animate-pulse"} />
+              )}
+            </div>
+          </div>
+          
+          <div className="flex flex-col items-center">
+            <h3 className={`text-lg font-black uppercase tracking-widest flex items-center justify-center gap-2
+              ${robotState === 'SYSTEM_ERROR' ? "text-red-600 dark:text-red-500" : "text-[var(--primary)]"}`}>
+              <Cpu size={18}/> Agentic AI Core
+            </h3>
+            
+            {/* Dynamic Colored Text based on Theme */}
+            <p className={`text-xl font-mono mt-0.5 font-bold tracking-widest transition-colors duration-300
+              ${robotState === 'SYSTEM_ERROR' ? 'text-red-600 dark:text-red-500 drop-shadow-sm dark:drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 
+                robotState === 'SCANNING' ? 'text-blue-600 dark:text-cyan-400 drop-shadow-sm dark:drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]' :
+                'text-green-600 dark:text-green-400 drop-shadow-sm dark:drop-shadow-[0_0_8px_rgba(74,222,128,0.8)]'}`}
+            >
+              [{robotState.replace('_', ' ')}]
+            </p>
+
+            {/* Micro Telemetry Data (Adaptive Card) */}
+            <div className="flex gap-4 justify-center mt-3 text-[9px] font-mono font-bold text-[var(--muted-foreground)] uppercase tracking-widest bg-slate-50 dark:bg-[var(--background)] px-3 py-1.5 rounded-md border border-slate-200 dark:border-[var(--card-border)] shadow-sm dark:shadow-inner transition-colors">
+               <span className="flex items-center gap-1"><Activity size={10} className="text-blue-500 dark:text-blue-400"/> 12ms</span>
+               <span className="flex items-center gap-1"><Server size={10} className="text-purple-500 dark:text-purple-400"/> v3.XGB</span>
+               <span className="flex items-center gap-1"><Activity size={10} className="text-green-500 dark:text-green-400"/> 94% ACC</span>
+            </div>
+          </div>
         </div>
-        
-        <div className="flex-grow text-center md:text-left">
-          <h3 className="text-lg font-black text-[var(--foreground)] uppercase tracking-widest flex items-center justify-center md:justify-start gap-2">
-            <Cpu className={robotState === 'SYSTEM_ERROR' ? "text-red-500" : "text-[var(--primary)]"} size={20}/> Agentic AI Core
-          </h3>
-          <p className={`text-2xl font-mono mt-1 font-bold ${robotState === 'SYSTEM_ERROR' ? 'text-red-500' : 'text-[var(--primary)]'}`}>
-            [{robotState.replace('_', ' ')}]
-          </p>
-          <p className={`text-sm font-bold mt-2 px-3 py-1 rounded-lg inline-block 
-            ${robotState === 'PROFIT_SECURED' ? 'bg-green-500/20 text-green-400' : 
-              robotState === 'SHIELD_ACTIVE' ? 'bg-blue-500/20 text-blue-400' : 
-              robotState === 'ENTRY_EXECUTION' ? 'bg-orange-500/20 text-orange-400' : 
-              robotState === 'SYSTEM_ERROR' ? 'bg-red-500/20 text-red-500' : 
-              'bg-[var(--muted)] text-[var(--muted-foreground)]'}`}
-          >
-            {tradeInfo}
-          </p>
+
+        {/* Panel Kanan: Live Terminal Shell (Slate IDE Theme di Light Mode, Pitch Black di Dark Mode) */}
+        <div className="md:col-span-2 bg-[#0f172a] dark:bg-[#050505] rounded-2xl border border-slate-700 dark:border-gray-800 p-4 font-mono text-[11px] sm:text-xs h-48 sm:h-56 overflow-y-auto flex flex-col gap-2 shadow-[0_4px_20px_rgba(0,0,0,0.1)] dark:shadow-inner relative custom-scrollbar z-10 group transition-colors">
+          
+          {/* CRT Scanlines Effect */}
+          <div className="absolute inset-0 pointer-events-none opacity-[0.03] group-hover:opacity-[0.06] transition-opacity z-0" 
+               style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 1) 1px, transparent 1px)', backgroundSize: '100% 3px' }}>
+          </div>
+
+          <div className="sticky top-0 bg-[#0f172a]/95 dark:bg-[#050505]/90 pb-2 border-b border-slate-700 dark:border-gray-800 mb-2 flex justify-between items-center z-10 backdrop-blur-md transition-colors">
+             <span className="text-slate-400 dark:text-gray-500 font-bold flex items-center gap-2 tracking-widest text-[10px] md:text-xs">
+               <Terminal size={14} className="text-slate-500 dark:text-gray-400"/> 
+               AGENTIC_CORE_BASH.exe
+               <span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 bg-green-500/10 border border-green-500/30 text-green-500 rounded text-[8px] animate-pulse">SECURE LINK</span>
+             </span>
+             <span className="flex gap-1.5">
+               <div className="w-2.5 h-2.5 rounded-full bg-red-500/80 shadow-[0_0_5px_rgba(239,68,68,0.6)]"></div>
+               <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80 shadow-[0_0_5px_rgba(234,179,8,0.6)]"></div>
+               <div className="w-2.5 h-2.5 rounded-full bg-green-500/80 shadow-[0_0_5px_rgba(34,197,94,0.6)]"></div>
+             </span>
+          </div>
+
+          <div className="z-10 flex flex-col gap-2 flex-grow">
+            {terminalLogs.map((log, i) => (
+              <div key={i} className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <span className="text-slate-500 dark:text-gray-600 shrink-0">[{log.time}]</span>
+                <span className={`break-words ${getTerminalColor(log.type)}`}>
+                  <span className="opacity-50 mr-1">{log.type === 'SCANNING' ? '>' : '>>'}</span> {log.text}
+                </span>
+              </div>
+            ))}
+            
+            <div className="flex gap-3">
+               <span className="text-slate-500 dark:text-gray-600 shrink-0">[{new Date().toLocaleTimeString('en-US', { hour12: false })}]</span>
+               <span className="text-slate-400 dark:text-gray-400 animate-[pulse_1s_ease-in-out_infinite]">_</span>
+            </div>
+            
+            <div ref={terminalEndRef} />
+          </div>
         </div>
       </div>
 
-      {/* UI: PERFORMANCE STATS */}
+
+      {/* 7.3 PERFORMANCE STATS BOXES */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: t.absGrowth, val: `${liveData.absolute_growth_percent > 0 ? '+' : ''}${formatPct(liveData.absolute_growth_percent)}`, sub: t.basedOnInitial, icon: TrendingUp, color: 'text-green-500' },
@@ -339,7 +443,8 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* UI: CASH FLOW */}
+
+      {/* 7.4 CASH FLOW LEDGER */}
       <div className="bg-[var(--muted)]/50 rounded-2xl p-5 border border-[var(--card-border)] flex flex-wrap gap-4 justify-between items-center shadow-sm">
         {[
           { label: t.initDepo, val: formatCur(liveData.initial_deposit), icon: Wallet, c: 'text-blue-500' },
@@ -362,7 +467,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* UI: CHART & DAILY HISTORY */}
+
+      {/* 7.5 CHART & 5-DAYS HISTORY */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] p-6 shadow-sm">
           <h3 className="font-bold text-sm text-[var(--foreground)] mb-6 flex items-center gap-2"><Activity size={16} className="text-[var(--primary)]"/> {t.chartTitle}</h3>
@@ -411,7 +517,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* UI: LIVE POSITIONS */}
+
+      {/* 7.6 LIVE OPEN POSITIONS */}
       <div className="bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] shadow-sm overflow-hidden">
         <div className="p-5 border-b border-[var(--card-border)] flex justify-between items-center bg-[var(--muted)]/30">
           <h3 className="font-bold text-sm text-[var(--foreground)] flex items-center gap-2"><Clock size={16} className="text-[var(--primary)]" />{t.livePositions} ({openTrades.length})</h3>
