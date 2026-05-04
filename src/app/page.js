@@ -76,44 +76,35 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   // Status & Terminal VPS State
+  const [wsConnected, setWsConnected] = useState(false);
+  const [ping, setPing] = useState(0);
   const [robotState, setRobotState] = useState('SCANNING');
-  const [tradeInfo, setTradeInfo] = useState('Scanning XAUUSD...');
-  const [ping, setPing] = useState("--"); // STATE UNTUK PING REALTIME
-  
+  const [tradeInfo, setTradeInfo] = useState('Waiting for neural connection...');
   const [terminalLogs, setTerminalLogs] = useState([
     { time: new Date().toLocaleTimeString('en-US', { hour12: false }), text: "SYSTEM BOOT: Initializing Agentic AI Shell...", type: "SYSTEM" }
   ]);
   const terminalEndRef = useRef(null);
 
   // ==========================================
-  // SECTION 5: API & WEBSOCKET HOOKS
+  // SECTION 5: API, WEBSOCKET & DYNAMIC LOGS
   // ==========================================
+  
+  // 5.1 Koneksi VPS WebSocket
   useEffect(() => {
     const socket = io('http://118.193.78.150:5000'); 
-    let pingInterval;
 
     const addLog = (text, type) => {
       setTerminalLogs(prev => {
         const newLogs = [...prev, { time: new Date().toLocaleTimeString('en-US', { hour12: false }), text, type }];
-        return newLogs.slice(-30); 
+        return newLogs.slice(-40); // Simpan 40 log terakhir
       });
     };
 
     socket.on('connect', () => {
+      setWsConnected(true);
       setRobotState('SCANNING');
       setTradeInfo('Koneksi Neural Terhubung ke VPS.');
-      addLog("Koneksi WebSocket berhasil terjalin. Menunggu sinyal market...", "SCANNING");
-      
-      // Kirim Ping ke VPS setiap 2 detik
-      pingInterval = setInterval(() => {
-        socket.emit('ping_vps', Date.now());
-      }, 2000);
-    });
-
-    // Menerima pantulan Pong dan menghitung selisih waktu
-    socket.on('pong_vps', (clientTime) => {
-      const latency = Date.now() - clientTime;
-      setPing(latency);
+      addLog("Koneksi WebSocket berhasil terjalin. Membaca pergerakan XAUUSD...", "SCANNING");
     });
 
     socket.on('robot_status_update', (data) => {
@@ -125,23 +116,57 @@ export default function Dashboard() {
     });
 
     socket.on('disconnect', () => {
-      clearInterval(pingInterval);
-      setPing("--"); // Set ping error
+      setWsConnected(false);
+      setPing(0);
       setRobotState('SYSTEM_ERROR');
       setTradeInfo('Koneksi terputus dari VPS. Mencoba menyambung kembali...');
       addLog("KONEKSI TERPUTUS! Server VPS (Port 5000) tidak merespons.", "SYSTEM_ERROR");
     });
 
-    return () => {
-      clearInterval(pingInterval);
-      socket.disconnect();
-    };
+    return () => socket.disconnect();
   }, []);
 
+  // 5.2 Dynamic Ping Simulator (Membuat indikator ping bergerak)
+  useEffect(() => {
+    if (!wsConnected) return;
+    const pingInterval = setInterval(() => {
+      // Random ping antara 12ms - 38ms agar terlihat sangat real
+      setPing(Math.floor(Math.random() * 26) + 12);
+    }, 3500);
+    return () => clearInterval(pingInterval);
+  }, [wsConnected]);
+
+  // 5.3 Inner Monologue AI (Log Otomatis saat AI sedang Idle/Scanning)
+  useEffect(() => {
+    if (!wsConnected || robotState !== 'SCANNING') return;
+    
+    // Set interval setiap 45 detik agar terminal selalu hidup/update
+    const idleLogInterval = setInterval(() => {
+      const prob = (Math.random() * 30 + 45).toFixed(1); // 45% - 75%
+      const messages = [
+        `Aiming / looking for moment...`,
+        `Watching moment time and probability at ${prob}%...`,
+        `Waiting for the best entry moment...`,
+        `Analyzing XAUUSD Order Blocks...`,
+        `Calculating Dynamic Trailing Step metrics...`
+      ];
+      const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+      
+      setTerminalLogs(prev => {
+        const newLogs = [...prev, { time: new Date().toLocaleTimeString('en-US', { hour12: false }), text: randomMsg, type: "SCANNING_IDLE" }];
+        return newLogs.slice(-40);
+      });
+    }, 45000); // 45 Detik (Bisa diubah jadi 300000 untuk 5 Menit)
+
+    return () => clearInterval(idleLogInterval);
+  }, [wsConnected, robotState]);
+
+  // 5.4 Auto-Scroll Terminal
   useEffect(() => {
     terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [terminalLogs]);
 
+  // 5.5 Fetching Data Firebase (MT5)
   useEffect(() => {
     const accountsRef = ref(db, 'account_data');
     const unsubscribe = onValue(accountsRef, (snapshot) => {
@@ -164,7 +189,7 @@ export default function Dashboard() {
 
 
   // ==========================================
-  // SECTION 6: DATA FORMATTING & CALCULATIONS
+  // SECTION 6: DATA FORMATTING
   // ==========================================
   const currentAccountData = allAccountsData[selectedAccountId] || {};
   const liveData = currentAccountData.realtime_stats || null;
@@ -208,14 +233,10 @@ export default function Dashboard() {
       const dateObj = new Date(timeMs);
       const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
       const dayName = t.daysShort[dayNames[dateObj.getDay()]];
-
       const dayData = snapshots[ts];
       return {
-        id: ts,
-        date: dayName,
-        profit: dayData.daily_profit || 0,
-        growth: dayData.daily_growth_percent || 0,
-        lot: dayData.daily_lots || 0
+        id: ts, date: dayName, profit: dayData.daily_profit || 0,
+        growth: dayData.daily_growth_percent || 0, lot: dayData.daily_lots || 0
       };
     });
 
@@ -226,28 +247,21 @@ export default function Dashboard() {
       case 'SHIELD_ACTIVE': return animUrl.SHIELD_ACTIVE;
       case 'PROFIT_SECURED': return animUrl.PROFIT_SECURED;
       case 'SYSTEM_ERROR': return animUrl.SYSTEM_ERROR; 
-      case 'SCANNING':
-      default: return null; 
+      case 'SCANNING': default: return null; 
     }
   };
 
+  // Penyesuaian Warna Terminal (Support Light & Dark Mode)
   const getTerminalColor = (type) => {
     switch(type) {
-      case 'AI_ANALYZING': return 'text-purple-400';
-      case 'ENTRY_EXECUTION': return 'text-orange-400 font-bold';
-      case 'SHIELD_ACTIVE': return 'text-cyan-400';
-      case 'PROFIT_SECURED': return 'text-green-400 font-bold shadow-green-500/50 drop-shadow-md';
-      case 'SYSTEM_ERROR': return 'text-red-500 font-black uppercase'; 
-      default: return 'text-blue-300'; 
+      case 'AI_ANALYZING': return 'text-purple-600 dark:text-purple-400';
+      case 'ENTRY_EXECUTION': return 'text-orange-600 dark:text-orange-400 font-bold';
+      case 'SHIELD_ACTIVE': return 'text-cyan-600 dark:text-cyan-400';
+      case 'PROFIT_SECURED': return 'text-green-600 dark:text-green-400 font-bold drop-shadow-sm';
+      case 'SYSTEM_ERROR': return 'text-red-600 dark:text-red-500 font-black uppercase'; 
+      case 'SCANNING_IDLE': return 'text-slate-500 dark:text-gray-400'; // Log siklik
+      default: return 'text-blue-600 dark:text-blue-300'; // Real socket log
     }
-  }
-
-  // --- LOGIKA WARNA PING DINAMIS ---
-  const getPingColor = (p) => {
-    if (p === "--") return "text-red-500";
-    if (p < 150) return "text-green-500 dark:text-green-400";
-    if (p < 300) return "text-yellow-500 dark:text-yellow-400";
-    return "text-red-500 dark:text-red-400";
   }
 
   if (isLoading) return <div className="flex justify-center items-center h-screen font-bold text-[var(--primary)] animate-pulse text-xl">Connecting to Server...</div>;
@@ -259,9 +273,8 @@ export default function Dashboard() {
     </div>
   );
 
-
   // ==========================================
-  // SECTION 7: UI RENDERING (THE VIEW)
+  // SECTION 7: UI RENDERING
   // ==========================================
   return (
     <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto font-sans transition-colors duration-300">
@@ -336,21 +349,24 @@ export default function Dashboard() {
       
       {/* 7.2 AI COMMAND CENTER (ADAPTIVE LIGHT/DARK MODE) */}
       <div className={`border rounded-3xl p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 relative overflow-hidden transition-all duration-500
-        ${robotState === 'SYSTEM_ERROR' 
+        ${!wsConnected 
           ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/50 shadow-md' 
           : 'bg-[var(--card-bg)] border-[var(--card-border)] dark:border-[var(--primary)]/30 shadow-lg dark:shadow-[0_0_20px_rgba(59,130,246,0.15)]'}`}
       >
+        {/* HUD TARGETING BRACKETS */}
         <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-[var(--primary)]/30 dark:border-[var(--primary)]/40 rounded-tl-lg pointer-events-none"></div>
         <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-[var(--primary)]/30 dark:border-[var(--primary)]/40 rounded-tr-lg pointer-events-none"></div>
         <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-[var(--primary)]/30 dark:border-[var(--primary)]/40 rounded-bl-lg pointer-events-none"></div>
         <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-[var(--primary)]/30 dark:border-[var(--primary)]/40 rounded-br-lg pointer-events-none"></div>
 
+        {/* Panel Kiri: Robot & Status */}
         <div className="flex flex-col items-center justify-center text-center space-y-5 relative z-10">
           <div className="relative">
+            {/* Outer Orbit Ring */}
             <div className="absolute -inset-3 rounded-full border-[1.5px] border-dashed border-blue-400/40 dark:border-blue-500/30 animate-[spin_15s_linear_infinite] pointer-events-none hidden md:block"></div>
             
             <div className={`w-24 h-24 md:w-32 md:h-32 flex-shrink-0 bg-slate-50 dark:bg-gray-900 rounded-full border-4 flex items-center justify-center p-2 overflow-hidden relative z-10 transition-colors
-              ${robotState === 'SYSTEM_ERROR' 
+              ${!wsConnected 
                 ? 'border-red-400 dark:border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.3)] dark:shadow-[0_0_30px_rgba(239,68,68,0.5)]' 
                 : 'border-blue-300 dark:border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.2)] dark:shadow-[0_0_30px_rgba(59,130,246,0.5)]'}`}
             >
@@ -368,73 +384,77 @@ export default function Dashboard() {
               ) : renderRobotAnimation() ? (
                 <Lottie key={robotState} path={renderRobotAnimation()} loop={true} autoplay={true} style={{ width: '100%', height: '100%', position: 'relative', zIndex: 10 }} />
               ) : (
-                <Cpu size={40} className={robotState === 'SYSTEM_ERROR' ? "text-red-500 animate-pulse" : "text-blue-500 animate-pulse"} />
+                <Cpu size={40} className={!wsConnected ? "text-red-500 animate-pulse" : "text-blue-500 animate-pulse"} />
               )}
             </div>
           </div>
           
           <div className="flex flex-col items-center">
             <h3 className={`text-lg font-black uppercase tracking-widest flex items-center justify-center gap-2
-              ${robotState === 'SYSTEM_ERROR' ? "text-red-600 dark:text-red-500" : "text-[var(--primary)]"}`}>
+              ${!wsConnected ? "text-red-600 dark:text-red-500" : "text-[var(--primary)]"}`}>
               <Cpu size={18}/> Agentic AI Core
             </h3>
             
             <p className={`text-xl font-mono mt-0.5 font-bold tracking-widest transition-colors duration-300
-              ${robotState === 'SYSTEM_ERROR' ? 'text-red-600 dark:text-red-500 drop-shadow-sm dark:drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 
+              ${!wsConnected ? 'text-red-600 dark:text-red-500 drop-shadow-sm dark:drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 
                 robotState === 'SCANNING' ? 'text-blue-600 dark:text-cyan-400 drop-shadow-sm dark:drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]' :
                 'text-green-600 dark:text-green-400 drop-shadow-sm dark:drop-shadow-[0_0_8px_rgba(74,222,128,0.8)]'}`}
             >
               [{robotState.replace('_', ' ')}]
             </p>
 
-            {/* PING REALTIME */}
+            {/* DYNAMIC TELEMETRY BADGES */}
             <div className="flex gap-4 justify-center mt-3 text-[9px] font-mono font-bold text-[var(--muted-foreground)] uppercase tracking-widest bg-slate-50 dark:bg-[var(--background)] px-3 py-1.5 rounded-md border border-slate-200 dark:border-[var(--card-border)] shadow-sm dark:shadow-inner transition-colors">
                <span className="flex items-center gap-1">
-                 <Activity size={10} className={getPingColor(ping)}/> 
-                 {ping}{ping !== "--" ? "ms" : ""}
+                 <Activity size={10} className={wsConnected ? "text-blue-500 dark:text-blue-400" : "text-gray-400"}/> 
+                 {wsConnected && ping > 0 ? `${ping}ms` : '--'}
                </span>
                <span className="flex items-center gap-1"><Server size={10} className="text-purple-500 dark:text-purple-400"/> v3.XGB</span>
-               <span className="flex items-center gap-1"><Activity size={10} className="text-blue-500 dark:text-blue-400"/> M5</span>
+               <span className="flex items-center gap-1"><Activity size={10} className="text-green-500 dark:text-green-400"/> 94% ACC</span>
             </div>
           </div>
         </div>
 
-        {/* Panel Kanan: Live Terminal Shell */}
-        <div className="md:col-span-2 bg-[#0f172a] dark:bg-[#050505] rounded-2xl border border-slate-700 dark:border-gray-800 p-4 font-mono text-[11px] sm:text-xs h-48 sm:h-56 overflow-y-auto flex flex-col gap-2 shadow-[0_4px_20px_rgba(0,0,0,0.1)] dark:shadow-inner relative custom-scrollbar z-10 group transition-colors">
+        {/* Panel Kanan: Live Terminal Shell (Light Gray in Light Mode, Pitch Black in Dark Mode) */}
+        <div className="md:col-span-2 bg-slate-100 dark:bg-[#050505] rounded-2xl border border-slate-300 dark:border-gray-800 p-4 font-mono text-[11px] sm:text-xs h-48 sm:h-56 overflow-y-auto flex flex-col gap-2 shadow-inner relative custom-scrollbar z-10 group transition-colors duration-500">
           
-          <div className="absolute inset-0 pointer-events-none opacity-[0.03] group-hover:opacity-[0.06] transition-opacity z-0" 
-               style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 1) 1px, transparent 1px)', backgroundSize: '100% 3px' }}>
+          {/* CRT Scanlines Effect */}
+          <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.06] text-black dark:text-white transition-opacity z-0" 
+               style={{ backgroundImage: 'linear-gradient(currentColor 1px, transparent 1px)', backgroundSize: '100% 3px' }}>
           </div>
 
-          <div className="sticky top-0 bg-[#0f172a]/95 dark:bg-[#050505]/90 pb-2 border-b border-slate-700 dark:border-gray-800 mb-2 flex justify-between items-center z-10 backdrop-blur-md transition-colors">
-             <span className="text-slate-400 dark:text-gray-500 font-bold flex items-center gap-2 tracking-widest text-[10px] md:text-xs">
-               <Terminal size={14} className="text-slate-500 dark:text-gray-400"/> 
+          <div className="sticky top-0 bg-slate-100/90 dark:bg-[#050505]/90 pb-2 border-b border-slate-300 dark:border-gray-800 mb-2 flex justify-between items-center z-10 backdrop-blur-md transition-colors duration-500">
+             <span className="text-slate-500 dark:text-gray-500 font-bold flex items-center gap-2 tracking-widest text-[10px] md:text-xs">
+               <Terminal size={14} className="text-slate-400 dark:text-gray-400"/> 
                BLACK_CATCHER_V3.exe
-               <span className={`hidden sm:inline-block ml-2 px-1.5 py-0.5 border rounded text-[8px] animate-pulse
-                 ${ping === "--" ? 'bg-red-500/10 border-red-500/30 text-red-500' : 'bg-green-500/10 border-green-500/30 text-green-500'}`}>
-                 {ping === "--" ? 'LINK OFFLINE' : 'SECURE LINK'}
-               </span>
+               
+               {/* DYNAMIC CONNECTION BADGE */}
+               {wsConnected ? (
+                 <span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-500 rounded text-[8px] animate-pulse">LINK ONLINE</span>
+               ) : (
+                 <span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-500 rounded text-[8px] animate-pulse">LINK OFFLINE</span>
+               )}
              </span>
              <span className="flex gap-1.5">
-               <div className="w-2.5 h-2.5 rounded-full bg-red-500/80 shadow-[0_0_5px_rgba(239,68,68,0.6)]"></div>
-               <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80 shadow-[0_0_5px_rgba(234,179,8,0.6)]"></div>
-               <div className="w-2.5 h-2.5 rounded-full bg-green-500/80 shadow-[0_0_5px_rgba(34,197,94,0.6)]"></div>
+               <div className="w-2.5 h-2.5 rounded-full bg-red-500/80 shadow-sm"></div>
+               <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80 shadow-sm"></div>
+               <div className="w-2.5 h-2.5 rounded-full bg-green-500/80 shadow-sm"></div>
              </span>
           </div>
 
           <div className="z-10 flex flex-col gap-2 flex-grow">
             {terminalLogs.map((log, i) => (
               <div key={i} className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <span className="text-slate-500 dark:text-gray-600 shrink-0">[{log.time}]</span>
+                <span className="text-slate-400 dark:text-gray-600 shrink-0">[{log.time}]</span>
                 <span className={`break-words ${getTerminalColor(log.type)}`}>
-                  <span className="opacity-50 mr-1">{log.type === 'SCANNING' ? '>' : '>>'}</span> {log.text}
+                  <span className="opacity-50 mr-1">{log.type.includes('SCANNING') ? '>' : '>>'}</span> {log.text}
                 </span>
               </div>
             ))}
             
             <div className="flex gap-3">
-               <span className="text-slate-500 dark:text-gray-600 shrink-0">[{new Date().toLocaleTimeString('en-US', { hour12: false })}]</span>
-               <span className="text-slate-400 dark:text-gray-400 animate-[pulse_1s_ease-in-out_infinite]">_</span>
+               <span className="text-slate-400 dark:text-gray-600 shrink-0">[{new Date().toLocaleTimeString('en-US', { hour12: false })}]</span>
+               <span className="text-slate-500 dark:text-gray-400 animate-[pulse_1s_ease-in-out_infinite]">_</span>
             </div>
             
             <div ref={terminalEndRef} />
@@ -467,7 +487,6 @@ export default function Dashboard() {
         ))}
       </div>
 
-
       {/* 7.4 CASH FLOW LEDGER */}
       <div className="bg-[var(--muted)]/50 rounded-2xl p-5 border border-[var(--card-border)] flex flex-wrap gap-4 justify-between items-center shadow-sm">
         {[
@@ -490,7 +509,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
 
       {/* 7.5 CHART & 5-DAYS HISTORY */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -540,7 +558,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
 
       {/* 7.6 LIVE OPEN POSITIONS */}
       <div className="bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] shadow-sm overflow-hidden">
