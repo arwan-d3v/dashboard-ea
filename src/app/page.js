@@ -20,7 +20,6 @@ import dynamic from 'next/dynamic';
 
 const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
 
-
 // ============================================================================
 // SECTION 2: CONFIGURATION & DICTIONARIES
 // ============================================================================
@@ -60,7 +59,6 @@ const dict = {
   }
 };
 
-
 // ============================================================================
 // SECTION 3: MAIN DASHBOARD COMPONENT
 // ============================================================================
@@ -80,17 +78,19 @@ export default function Dashboard() {
   // Status & Terminal VPS State
   const [robotState, setRobotState] = useState('SCANNING');
   const [tradeInfo, setTradeInfo] = useState('Scanning XAUUSD...');
+  const [ping, setPing] = useState("--"); // STATE UNTUK PING REALTIME
+  
   const [terminalLogs, setTerminalLogs] = useState([
     { time: new Date().toLocaleTimeString('en-US', { hour12: false }), text: "SYSTEM BOOT: Initializing Agentic AI Shell...", type: "SYSTEM" }
   ]);
   const terminalEndRef = useRef(null);
-
 
   // ==========================================
   // SECTION 5: API & WEBSOCKET HOOKS
   // ==========================================
   useEffect(() => {
     const socket = io('http://118.193.78.150:5000'); 
+    let pingInterval;
 
     const addLog = (text, type) => {
       setTerminalLogs(prev => {
@@ -103,6 +103,17 @@ export default function Dashboard() {
       setRobotState('SCANNING');
       setTradeInfo('Koneksi Neural Terhubung ke VPS.');
       addLog("Koneksi WebSocket berhasil terjalin. Menunggu sinyal market...", "SCANNING");
+      
+      // Kirim Ping ke VPS setiap 2 detik
+      pingInterval = setInterval(() => {
+        socket.emit('ping_vps', Date.now());
+      }, 2000);
+    });
+
+    // Menerima pantulan Pong dan menghitung selisih waktu
+    socket.on('pong_vps', (clientTime) => {
+      const latency = Date.now() - clientTime;
+      setPing(latency);
     });
 
     socket.on('robot_status_update', (data) => {
@@ -114,12 +125,17 @@ export default function Dashboard() {
     });
 
     socket.on('disconnect', () => {
+      clearInterval(pingInterval);
+      setPing("--"); // Set ping error
       setRobotState('SYSTEM_ERROR');
       setTradeInfo('Koneksi terputus dari VPS. Mencoba menyambung kembali...');
       addLog("KONEKSI TERPUTUS! Server VPS (Port 5000) tidak merespons.", "SYSTEM_ERROR");
     });
 
-    return () => socket.disconnect();
+    return () => {
+      clearInterval(pingInterval);
+      socket.disconnect();
+    };
   }, []);
 
   useEffect(() => {
@@ -226,6 +242,14 @@ export default function Dashboard() {
     }
   }
 
+  // --- LOGIKA WARNA PING DINAMIS ---
+  const getPingColor = (p) => {
+    if (p === "--") return "text-red-500";
+    if (p < 150) return "text-green-500 dark:text-green-400";
+    if (p < 300) return "text-yellow-500 dark:text-yellow-400";
+    return "text-red-500 dark:text-red-400";
+  }
+
   if (isLoading) return <div className="flex justify-center items-center h-screen font-bold text-[var(--primary)] animate-pulse text-xl">Connecting to Server...</div>;
   
   if (accountsList.length === 0 || !liveData) return (
@@ -316,16 +340,13 @@ export default function Dashboard() {
           ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/50 shadow-md' 
           : 'bg-[var(--card-bg)] border-[var(--card-border)] dark:border-[var(--primary)]/30 shadow-lg dark:shadow-[0_0_20px_rgba(59,130,246,0.15)]'}`}
       >
-        {/* HUD TARGETING BRACKETS (Dekorasi) */}
         <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-[var(--primary)]/30 dark:border-[var(--primary)]/40 rounded-tl-lg pointer-events-none"></div>
         <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-[var(--primary)]/30 dark:border-[var(--primary)]/40 rounded-tr-lg pointer-events-none"></div>
         <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-[var(--primary)]/30 dark:border-[var(--primary)]/40 rounded-bl-lg pointer-events-none"></div>
         <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-[var(--primary)]/30 dark:border-[var(--primary)]/40 rounded-br-lg pointer-events-none"></div>
 
-        {/* Panel Kiri: Robot & Status */}
         <div className="flex flex-col items-center justify-center text-center space-y-5 relative z-10">
           <div className="relative">
-            {/* Outer Orbit Ring Animasi */}
             <div className="absolute -inset-3 rounded-full border-[1.5px] border-dashed border-blue-400/40 dark:border-blue-500/30 animate-[spin_15s_linear_infinite] pointer-events-none hidden md:block"></div>
             
             <div className={`w-24 h-24 md:w-32 md:h-32 flex-shrink-0 bg-slate-50 dark:bg-gray-900 rounded-full border-4 flex items-center justify-center p-2 overflow-hidden relative z-10 transition-colors
@@ -358,7 +379,6 @@ export default function Dashboard() {
               <Cpu size={18}/> Agentic AI Core
             </h3>
             
-            {/* Dynamic Colored Text based on Theme */}
             <p className={`text-xl font-mono mt-0.5 font-bold tracking-widest transition-colors duration-300
               ${robotState === 'SYSTEM_ERROR' ? 'text-red-600 dark:text-red-500 drop-shadow-sm dark:drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 
                 robotState === 'SCANNING' ? 'text-blue-600 dark:text-cyan-400 drop-shadow-sm dark:drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]' :
@@ -367,19 +387,21 @@ export default function Dashboard() {
               [{robotState.replace('_', ' ')}]
             </p>
 
-            {/* Micro Telemetry Data (Adaptive Card) */}
+            {/* PING REALTIME */}
             <div className="flex gap-4 justify-center mt-3 text-[9px] font-mono font-bold text-[var(--muted-foreground)] uppercase tracking-widest bg-slate-50 dark:bg-[var(--background)] px-3 py-1.5 rounded-md border border-slate-200 dark:border-[var(--card-border)] shadow-sm dark:shadow-inner transition-colors">
-               <span className="flex items-center gap-1"><Activity size={10} className="text-blue-500 dark:text-blue-400"/> 12ms</span>
+               <span className="flex items-center gap-1">
+                 <Activity size={10} className={getPingColor(ping)}/> 
+                 {ping}{ping !== "--" ? "ms" : ""}
+               </span>
                <span className="flex items-center gap-1"><Server size={10} className="text-purple-500 dark:text-purple-400"/> v3.XGB</span>
-               <span className="flex items-center gap-1"><Activity size={10} className="text-green-500 dark:text-green-400"/> 94% ACC</span>
+               <span className="flex items-center gap-1"><Activity size={10} className="text-blue-500 dark:text-blue-400"/> M5</span>
             </div>
           </div>
         </div>
 
-        {/* Panel Kanan: Live Terminal Shell (Slate IDE Theme di Light Mode, Pitch Black di Dark Mode) */}
+        {/* Panel Kanan: Live Terminal Shell */}
         <div className="md:col-span-2 bg-[#0f172a] dark:bg-[#050505] rounded-2xl border border-slate-700 dark:border-gray-800 p-4 font-mono text-[11px] sm:text-xs h-48 sm:h-56 overflow-y-auto flex flex-col gap-2 shadow-[0_4px_20px_rgba(0,0,0,0.1)] dark:shadow-inner relative custom-scrollbar z-10 group transition-colors">
           
-          {/* CRT Scanlines Effect */}
           <div className="absolute inset-0 pointer-events-none opacity-[0.03] group-hover:opacity-[0.06] transition-opacity z-0" 
                style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 1) 1px, transparent 1px)', backgroundSize: '100% 3px' }}>
           </div>
@@ -387,8 +409,11 @@ export default function Dashboard() {
           <div className="sticky top-0 bg-[#0f172a]/95 dark:bg-[#050505]/90 pb-2 border-b border-slate-700 dark:border-gray-800 mb-2 flex justify-between items-center z-10 backdrop-blur-md transition-colors">
              <span className="text-slate-400 dark:text-gray-500 font-bold flex items-center gap-2 tracking-widest text-[10px] md:text-xs">
                <Terminal size={14} className="text-slate-500 dark:text-gray-400"/> 
-               AGENTIC_CORE_BASH.exe
-               <span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 bg-green-500/10 border border-green-500/30 text-green-500 rounded text-[8px] animate-pulse">SECURE LINK</span>
+               BLACK_CATCHER_V3.exe
+               <span className={`hidden sm:inline-block ml-2 px-1.5 py-0.5 border rounded text-[8px] animate-pulse
+                 ${ping === "--" ? 'bg-red-500/10 border-red-500/30 text-red-500' : 'bg-green-500/10 border-green-500/30 text-green-500'}`}>
+                 {ping === "--" ? 'LINK OFFLINE' : 'SECURE LINK'}
+               </span>
              </span>
              <span className="flex gap-1.5">
                <div className="w-2.5 h-2.5 rounded-full bg-red-500/80 shadow-[0_0_5px_rgba(239,68,68,0.6)]"></div>
@@ -416,7 +441,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
 
       {/* 7.3 PERFORMANCE STATS BOXES */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
