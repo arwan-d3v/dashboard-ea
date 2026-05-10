@@ -16,7 +16,7 @@ import {
 } from 'recharts';
 import { db } from "../lib/firebase";
 import { ref, onValue } from "firebase/database";
-import { io } from 'socket.io-client';
+// HAPUS import socket.io-client
 import dynamic from 'next/dynamic';
 
 const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
@@ -55,9 +55,7 @@ export default function Dashboard() {
   const [terminalLogs, setTerminalLogs] = useState([]);
   const terminalEndRef = useRef(null);
 
-  // ==========================================
-  // METADATA & BOT IDENTITY CONFIGURATION
-  // ==========================================
+  // Extract Metadata per Akun
   const currentAccountData = allAccountsData[selectedAccountId] || {};
   const metaData = currentAccountData.metadata || {};
   const botType = metaData.bot_type || "NON_ML";
@@ -69,36 +67,15 @@ export default function Dashboard() {
 
   const getGMT8Time = () => new Date().toLocaleTimeString('en-US', { hour12: false, timeZone: 'Asia/Singapore' });
 
-  // PENGATURAN KEPRIBADIAN BOT (DYNAMIC THEME - KONSISTEN TANPA KOTAK MERAH)
+  // PENGATURAN KEPRIBADIAN BOT
   const getBotTheme = (type) => {
     switch(type) {
       case 'GOD_MODE':
-        return {
-          name: "KRX - GOD HEALER", icon: Crown, exe: "GOD_CORE_V3.exe",
-          vibe: "High Precision | Golden Ratio Exec",
-          accent: "text-amber-500", bg: "bg-amber-500/10", 
-          border: "border-amber-500/40", brackets: "border-amber-500",
-          glow: "shadow-[0_0_25px_rgba(245,158,11,0.25)]", 
-          termBg: "bg-slate-900 dark:bg-[#030712]", termText: "text-amber-400", sysText: "text-blue-400"
-        };
+        return { name: "KRX - GOD HEALER", icon: Crown, exe: "GOD_CORE_V3.exe", vibe: "High Precision | Golden Ratio Exec", accent: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/40", brackets: "border-amber-500", glow: "shadow-[0_0_25px_rgba(245,158,11,0.25)]", termBg: "bg-slate-900 dark:bg-[#030712]", termText: "text-amber-400", sysText: "text-blue-400" };
       case 'BEAST_MODE':
-        return {
-          name: "KRX - BEAST WATCHER", icon: Flame, exe: "BEAST_CORE_V4.exe",
-          vibe: "Liquidity Hunter | Maximum Volume",
-          accent: "text-red-600 dark:text-red-500", bg: "bg-red-500/10", 
-          border: "border-red-500/50", brackets: "border-red-600 dark:border-red-500",
-          glow: "shadow-[0_0_35px_rgba(239,68,68,0.4)] animate-pulse", 
-          termBg: "bg-red-950/20 dark:bg-[#0a0000]", termText: "text-red-500", sysText: "text-orange-500"
-        };
+        return { name: "KRX - BEAST WATCHER", icon: Flame, exe: "BEAST_CORE_V4.exe", vibe: "Liquidity Hunter | Maximum Volume", accent: "text-red-600 dark:text-red-500", bg: "bg-red-500/10", border: "border-red-500/50", brackets: "border-red-600 dark:border-red-500", glow: "shadow-[0_0_35px_rgba(239,68,68,0.4)] animate-pulse", termBg: "bg-red-950/20 dark:bg-[#0a0000]", termText: "text-red-500", sysText: "text-orange-500" };
       case 'ENIGMA_OTE':
-        return {
-          name: "KRX - ENIGMA IMBALANCE", icon: Radar, exe: "ENIGMA_TRAP_V5.exe",
-          vibe: "Spatial Recon | BPR Anomalies",
-          accent: "text-emerald-500", bg: "bg-emerald-500/10", 
-          border: "border-emerald-500/40", brackets: "border-emerald-500",
-          glow: "shadow-[0_0_25px_rgba(16,185,129,0.25)]", 
-          termBg: "bg-slate-900 dark:bg-[#000500]", termText: "text-emerald-400", sysText: "text-purple-500"
-        };
+        return { name: "KRX - ENIGMA IMBALANCE", icon: Radar, exe: "ENIGMA_TRAP_V5.exe", vibe: "Spatial Recon | BPR Anomalies", accent: "text-emerald-500", bg: "bg-emerald-500/10", border: "border-emerald-500/40", brackets: "border-emerald-500", glow: "shadow-[0_0_25px_rgba(16,185,129,0.25)]", termBg: "bg-slate-900 dark:bg-[#000500]", termText: "text-emerald-400", sysText: "text-purple-500" };
       default: 
         return { name: "KLASIK EA", icon: Cpu, accent: "text-blue-500", termText: "text-blue-400", sysText: "text-blue-300" };
     }
@@ -106,74 +83,78 @@ export default function Dashboard() {
   const theme = getBotTheme(botType);
   const BotIcon = theme.icon;
 
-// ==========================================
-  // SECTION 5: DYNAMIC WEBSOCKET CONNECTION
   // ==========================================
+  // SECTION 5: FIREBASE CLOUD NODE CONNECTION (REPLACES WEBSOCKETS)
+  // ==========================================
+  const terminalData = currentAccountData?.ai_terminal;
+  const lastLogTimeRef = useRef(0);
+
+  // 5.1 Reset Terminal saat ganti akun/tipe bot
   useEffect(() => {
-    if (botType === "NON_ML" || !vpsIp) {
+    if (botType === "NON_ML") {
       setWsConnected(false);
       setTerminalLogs([]);
-      return;
-    }
-
-    setTerminalLogs([{ time: getGMT8Time(), text: `SYSTEM BOOT: Initializing ${theme.name} Protocol...`, type: "SYSTEM" }]);
-    setRobotState('SCANNING');
-    
-    // 3. Routing URL Adaptif (Anti-Ngrok Warning)
-    let socketUrl = vpsIp.startsWith('http') ? vpsIp : `http://${vpsIp}`;
-    
-    // Jangan tambah port khusus jika itu link ngrok
-    if (!socketUrl.includes('ngrok') && socketUrl.split(':').length === 2) {
-      socketUrl = `${socketUrl}:${wsPort || '5000'}`;
-    }
-
-    // INI KUNCI RAHASIANYA: Menambahkan header untuk bypass layar peringatan Ngrok
-    const socket = io(socketUrl, { 
-      reconnectionAttempts: 5, 
-      timeout: 5000,
-      extraHeaders: {
-        "ngrok-skip-browser-warning": "69420" 
-      }
-    }); 
-
-    const addLog = (text, type) => {
-      setTerminalLogs(prev => [...prev, { time: getGMT8Time(), text, type }].slice(-40));
-    };
-
-    socket.on('connect', () => {
-      setWsConnected(true);
+    } else {
+      setTerminalLogs([{ time: getGMT8Time(), text: `SYSTEM BOOT: Mengamankan koneksi ke KRX Cloud Node...`, type: "SYSTEM" }]);
       setRobotState('SCANNING');
-      setTradeInfo(`Neural Link Established: Node ${vpsIp}`);
-      addLog(`[LINK CONNECTED] Handshake sukses dengan AI Core. Membaca pergerakan market...`, "SYSTEM");
-    });
+      lastLogTimeRef.current = 0;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAccountId, botType]);
 
-    socket.on('robot_status_update', (data) => {
-      if (data.status) setRobotState(data.status);
-      if (data.info) {
-        setTradeInfo(data.info);
-        addLog(data.info, data.status);
-      }
-    });
-
-    socket.on('disconnect', () => {
-      setWsConnected(false);
-      setPing(0);
-      setRobotState('SYSTEM_ERROR');
-      setTradeInfo('Koneksi terputus dari Node VPS.');
-      addLog(`[CRITICAL] KONEKSI TERPUTUS! Server Node tidak merespons.`, "SYSTEM_ERROR");
-    });
-
-    return () => socket.disconnect();
-  }, [vpsIp, wsPort, botType]);
-
-  // Dynamic Ping Simulator
+  // 5.2 Listener Data Terminal dari Firebase
   useEffect(() => {
-    if (!wsConnected) return;
+    if (botType === "NON_ML") return;
+
+    if (terminalData) {
+      const now = Date.now();
+      const nodeTime = terminalData.timestamp || 0;
+
+      // Cek Heartbeat (Jika VPS update Firebase < 25 detik lalu = ONLINE)
+      if (now - nodeTime < 25000) {
+        if (!wsConnected) setWsConnected(true);
+      } else {
+        if (wsConnected) setWsConnected(false);
+        setRobotState('SYSTEM_ERROR');
+      }
+
+      // Update status animasi robot
+      if (terminalData.status) setRobotState(terminalData.status);
+
+      // Tambah log baru HANYA JIKA timestamp berbeda dari sebelumnya
+      if (terminalData.info && terminalData.timestamp !== lastLogTimeRef.current) {
+        lastLogTimeRef.current = terminalData.timestamp;
+        setTerminalLogs(prev => [...prev, { time: getGMT8Time(), text: terminalData.info, type: terminalData.status }].slice(-40));
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [terminalData, botType]);
+
+  // 5.3 Watchdog Timer (Pendeteksi Offline)
+  useEffect(() => {
+    if (botType === "NON_ML") return;
+    
+    const watchdog = setInterval(() => {
+      const now = Date.now();
+      if (lastLogTimeRef.current > 0 && (now - lastLogTimeRef.current > 25000)) {
+        setWsConnected(false);
+        setRobotState('SYSTEM_ERROR');
+      }
+    }, 5000);
+    
+    return () => clearInterval(watchdog);
+  }, [botType]);
+
+  // 5.4 Dynamic Ping Simulator Visual
+  useEffect(() => {
+    if (!wsConnected) {
+      setPing(0); return;
+    }
     const pingInterval = setInterval(() => setPing(Math.floor(Math.random() * 26) + 12), 3500);
     return () => clearInterval(pingInterval);
   }, [wsConnected]);
 
-  // Inner Monologue AI
+  // 5.5 Inner Monologue AI
   useEffect(() => {
     if (!wsConnected || robotState !== 'SCANNING') return;
     const idleLogInterval = setInterval(() => {
@@ -184,8 +165,10 @@ export default function Dashboard() {
       else if (botType === 'BEAST_MODE') messages = [`Sniffing liquidity pools... Aggression level high!`, `Hunting breakout momentum. Kill probability ${prob}%...`, `Target acquired, waiting for trigger volume...`];
       else if (botType === 'ENIGMA_OTE') messages = [`Analyzing spatial BPR anomalies. Stealth mode active.`, `Calculating OTE limits. Match probability ${prob}%...`, `Radar sweep complete. Awaiting market manipulation...`];
 
-      const randomMsg = messages[Math.floor(Math.random() * messages.length)];
-      setTerminalLogs(prev => [...prev, { time: getGMT8Time(), text: randomMsg, type: "SCANNING_IDLE" }].slice(-40));
+      if(messages.length > 0) {
+          const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+          setTerminalLogs(prev => [...prev, { time: getGMT8Time(), text: randomMsg, type: "SCANNING_IDLE" }].slice(-40));
+      }
     }, 45000); 
 
     return () => clearInterval(idleLogInterval);
@@ -194,7 +177,7 @@ export default function Dashboard() {
   useEffect(() => { terminalEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [terminalLogs]);
 
   // ==========================================
-  // SECTION 6: FIREBASE DATA FETCHING
+  // SECTION 6: FIREBASE DATA FETCHING (MASTER)
   // ==========================================
   useEffect(() => {
     const accountsRef = ref(db, 'account_data');
@@ -369,7 +352,7 @@ export default function Dashboard() {
         <div className={`border rounded-3xl p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 relative overflow-hidden transition-all duration-700
           bg-[var(--card-bg)] ${theme.border} ${wsConnected ? theme.glow : 'shadow-none opacity-80'}`}
         >
-          {/* HUD TARGETING BRACKETS (Warna Dynamic Fix, Tidak lagi dipaksa Merah) */}
+          {/* HUD TARGETING BRACKETS */}
           <div className={`absolute top-4 left-4 w-10 h-10 border-t-4 border-l-4 ${theme.brackets} ${wsConnected ? 'opacity-60' : 'opacity-30'} rounded-tl-xl pointer-events-none`}></div>
           <div className={`absolute top-4 right-4 w-10 h-10 border-t-4 border-r-4 ${theme.brackets} ${wsConnected ? 'opacity-60' : 'opacity-30'} rounded-tr-xl pointer-events-none`}></div>
           <div className={`absolute bottom-4 left-4 w-10 h-10 border-b-4 border-l-4 ${theme.brackets} ${wsConnected ? 'opacity-60' : 'opacity-30'} rounded-bl-xl pointer-events-none`}></div>
@@ -419,7 +402,7 @@ export default function Dashboard() {
                  <Activity size={12} className={wsConnected ? "text-blue-500 animate-pulse" : "text-gray-500"}/> 
                  {wsConnected ? `${ping}ms` : '--'}
                </span>
-               <span className="flex items-center gap-1 text-[10px] font-bold"><Server size={12} className={theme.accent}/> Node:{wsPort || '5000'}</span>
+               <span className="flex items-center gap-1 text-[10px] font-bold"><Server size={12} className={theme.accent}/> Cloud Sync</span>
             </div>
           </div>
 
@@ -447,7 +430,7 @@ export default function Dashboard() {
                 <div key={i} className="flex gap-3 animate-in fade-in slide-in-from-bottom-1 transition-colors duration-300">
                   <span className="text-slate-400 dark:text-gray-600 shrink-0 font-bold">[{log.time}]</span>
                   <span className={`break-words ${getLogColor(log.type, theme)}`}>
-                    {log.type.includes('SCANNING') ? '>> ' : '>>> '} {log.text}
+                    <span className="opacity-50 mr-1">{log.type.includes('SCANNING') ? '>' : '>>'}</span> {log.text}
                   </span>
                 </div>
               ))}
