@@ -106,7 +106,7 @@ export default function Dashboard() {
   const theme = getBotTheme(botType);
   const BotIcon = theme.icon;
 
-  // ==========================================
+// ==========================================
   // SECTION 5: DYNAMIC WEBSOCKET CONNECTION
   // ==========================================
   useEffect(() => {
@@ -119,10 +119,22 @@ export default function Dashboard() {
     setTerminalLogs([{ time: getGMT8Time(), text: `SYSTEM BOOT: Initializing ${theme.name} Protocol...`, type: "SYSTEM" }]);
     setRobotState('SCANNING');
     
+    // 3. Routing URL Adaptif (Anti-Ngrok Warning)
     let socketUrl = vpsIp.startsWith('http') ? vpsIp : `http://${vpsIp}`;
-    if (socketUrl.split(':').length === 2) socketUrl = `${socketUrl}:${wsPort || '5000'}`;
+    
+    // Jangan tambah port khusus jika itu link ngrok
+    if (!socketUrl.includes('ngrok') && socketUrl.split(':').length === 2) {
+      socketUrl = `${socketUrl}:${wsPort || '5000'}`;
+    }
 
-    const socket = io(socketUrl, { reconnectionAttempts: 5, timeout: 5000 }); 
+    // INI KUNCI RAHASIANYA: Menambahkan header untuk bypass layar peringatan Ngrok
+    const socket = io(socketUrl, { 
+      reconnectionAttempts: 5, 
+      timeout: 5000,
+      extraHeaders: {
+        "ngrok-skip-browser-warning": "69420" 
+      }
+    }); 
 
     const addLog = (text, type) => {
       setTerminalLogs(prev => [...prev, { time: getGMT8Time(), text, type }].slice(-40));
