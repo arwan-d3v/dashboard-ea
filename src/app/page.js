@@ -8,7 +8,8 @@ import {
   TrendingUp, TrendingDown, DollarSign, Activity, 
   Wallet, ArrowDownToLine, ArrowUpFromLine, 
   CalendarDays, BarChart3, Clock, AlertTriangle, 
-  Server, User, ChevronDown, Cpu, Terminal
+  Server, User, ChevronDown, Cpu, Terminal, 
+  Crown, Flame, Eye // Icon dinamis untuk tipe AI
 } from "lucide-react";
 import { 
   Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart 
@@ -80,31 +81,57 @@ export default function Dashboard() {
   const [ping, setPing] = useState(0);
   const [robotState, setRobotState] = useState('SCANNING');
   const [tradeInfo, setTradeInfo] = useState('Waiting for neural connection...');
-  const [terminalLogs, setTerminalLogs] = useState([
-    { time: new Date().toLocaleTimeString('en-US', { hour12: false }), text: "SYSTEM BOOT: Initializing Agentic AI Shell...", type: "SYSTEM" }
-  ]);
+  const [terminalLogs, setTerminalLogs] = useState([]);
   const terminalEndRef = useRef(null);
 
   // ==========================================
-  // SECTION 5: API, WEBSOCKET & DYNAMIC LOGS
+  // EXTRACT ACCOUNT METADATA FIRST
   // ==========================================
-  
-  // 5.1 Koneksi VPS WebSocket
+  const currentAccountData = allAccountsData[selectedAccountId] || {};
+  const metaData = currentAccountData.metadata || {};
+  const botType = metaData.bot_type || "NON_ML";
+  const vpsIp = metaData.vps_ip || "";
+  const wsPort = metaData.ws_port || "";
+
+  // Waktu absolut ke GMT+8 (Singapore)
+  const getGMT8Time = () => {
+    return new Date().toLocaleTimeString('en-US', { hour12: false, timeZone: 'Asia/Singapore' });
+  };
+
+  // ==========================================
+  // SECTION 5: DYNAMIC WEBSOCKET CONNECTION
+  // ==========================================
   useEffect(() => {
-    const socket = io('http://118.193.78.150:5000'); 
+    // 1. Matikan koneksi jika tipe bot adalah NON_ML atau IP/Port kosong
+    if (botType === "NON_ML" || !vpsIp || !wsPort) {
+      setWsConnected(false);
+      setTerminalLogs([]);
+      return;
+    }
+
+    // 2. Inisialisasi Terminal Awal
+    setTerminalLogs([{ time: getGMT8Time(), text: `SYSTEM BOOT: Initializing ${botType} Shell on ${vpsIp}:${wsPort}...`, type: "SYSTEM" }]);
+    setRobotState('SCANNING');
+    
+    // 3. Buat Koneksi Baru ke Node VPS yang spesifik
+    const socketUrl = `http://${vpsIp}:${wsPort}`;
+    const socket = io(socketUrl, {
+      reconnectionAttempts: 5,
+      timeout: 5000,
+    }); 
 
     const addLog = (text, type) => {
       setTerminalLogs(prev => {
-        const newLogs = [...prev, { time: new Date().toLocaleTimeString('en-US', { hour12: false }), text, type }];
-        return newLogs.slice(-40); // Simpan 40 log terakhir
+        const newLogs = [...prev, { time: getGMT8Time(), text, type }];
+        return newLogs.slice(-40); 
       });
     };
 
     socket.on('connect', () => {
       setWsConnected(true);
       setRobotState('SCANNING');
-      setTradeInfo('Koneksi Neural Terhubung ke VPS.');
-      addLog("Koneksi WebSocket berhasil terjalin. Membaca pergerakan XAUUSD...", "SCANNING");
+      setTradeInfo(`Koneksi Neural Terhubung ke Node ${wsPort}`);
+      addLog(`[NODE CONNECTED] Handshake sukses dengan AI Core (${botType}). Membaca market...`, "SCANNING");
     });
 
     socket.on('robot_status_update', (data) => {
@@ -119,47 +146,64 @@ export default function Dashboard() {
       setWsConnected(false);
       setPing(0);
       setRobotState('SYSTEM_ERROR');
-      setTradeInfo('Koneksi terputus dari VPS. Mencoba menyambung kembali...');
-      addLog("KONEKSI TERPUTUS! Server VPS (Port 5000) tidak merespons.", "SYSTEM_ERROR");
+      setTradeInfo('Koneksi terputus dari Node VPS.');
+      addLog(`KONEKSI TERPUTUS! Server Node (${wsPort}) tidak merespons.`, "SYSTEM_ERROR");
     });
 
+    // Cleanup: Matikan koneksi lama saat user mengganti akun
     return () => socket.disconnect();
-  }, []);
+  }, [vpsIp, wsPort, botType]);
 
-  // 5.2 Dynamic Ping Simulator (Membuat indikator ping bergerak)
+  // 5.2 Dynamic Ping Simulator
   useEffect(() => {
     if (!wsConnected) return;
     const pingInterval = setInterval(() => {
-      // Random ping antara 12ms - 38ms agar terlihat sangat real
       setPing(Math.floor(Math.random() * 26) + 12);
     }, 3500);
     return () => clearInterval(pingInterval);
   }, [wsConnected]);
 
-  // 5.3 Inner Monologue AI (Log Otomatis saat AI sedang Idle/Scanning)
+  // 5.3 Inner Monologue AI (Dynamic Text based on Bot Type)
   useEffect(() => {
     if (!wsConnected || robotState !== 'SCANNING') return;
     
-    // Set interval setiap 45 detik agar terminal selalu hidup/update
     const idleLogInterval = setInterval(() => {
-      const prob = (Math.random() * 30 + 45).toFixed(1); // 45% - 75%
-      const messages = [
-        `Aiming / looking for moment...`,
-        `Watching moment time and probability at ${prob}%...`,
-        `Waiting for the best entry moment...`,
-        `Analyzing XAUUSD Order Blocks...`,
-        `Calculating Dynamic Trailing Step metrics...`
-      ];
+      const prob = (Math.random() * 30 + 45).toFixed(1); 
+      let messages = [];
+
+      // Log Monolog disesuaikan dengan tipe AI
+      if (botType === 'GOD_MODE') {
+        messages = [
+          `Aiming / looking for moment with God Precision...`,
+          `Watching moment time and probability at ${prob}%...`,
+          `Waiting for the best entry moment. Checking Golden Ratios...`
+        ];
+      } else if (botType === 'BEAST_MODE') {
+        messages = [
+          `Sniffing market micro-structure... Aggression level high.`,
+          `Hunting for liquidity sweeps. Probability at ${prob}%...`,
+          `Waiting to execute brutal entry...`
+        ];
+      } else if (botType === 'ENIGMA_OTE') {
+        messages = [
+          `Scanning spatial BPR & IFVG anomalies...`,
+          `Calculating OTE limits. Match probability ${prob}%...`,
+          `Radar sweep complete. Awaiting structural shift...`
+        ];
+      } else {
+        messages = [`Analyzing market structure at ${prob}% probability...`];
+      }
+
       const randomMsg = messages[Math.floor(Math.random() * messages.length)];
       
       setTerminalLogs(prev => {
-        const newLogs = [...prev, { time: new Date().toLocaleTimeString('en-US', { hour12: false }), text: randomMsg, type: "SCANNING_IDLE" }];
+        const newLogs = [...prev, { time: getGMT8Time(), text: randomMsg, type: "SCANNING_IDLE" }];
         return newLogs.slice(-40);
       });
-    }, 45000); // 45 Detik (Bisa diubah jadi 300000 untuk 5 Menit)
+    }, 45000); 
 
     return () => clearInterval(idleLogInterval);
-  }, [wsConnected, robotState]);
+  }, [wsConnected, robotState, botType]);
 
   // 5.4 Auto-Scroll Terminal
   useEffect(() => {
@@ -189,12 +233,10 @@ export default function Dashboard() {
 
 
   // ==========================================
-  // SECTION 6: DATA FORMATTING
+  // SECTION 6: DATA FORMATTING & VISUAL IDENTITY
   // ==========================================
-  const currentAccountData = allAccountsData[selectedAccountId] || {};
   const liveData = currentAccountData.realtime_stats || null;
   const openTrades = currentAccountData.open_trades || [];
-  const metaData = currentAccountData.metadata || {};
 
   const isEATrading = openTrades.length > 0;
   const brokerName = metaData.broker || "Membaca Server..."; 
@@ -240,6 +282,22 @@ export default function Dashboard() {
       };
     });
 
+  // DYNAMIC VISUAL IDENTITY (THEMES BASED ON BOT TYPE)
+  const getBotVisuals = (type) => {
+    switch(type) {
+      case 'GOD_MODE': 
+        return { icon: Crown, color: 'text-yellow-500 dark:text-yellow-400', border: 'border-yellow-500', shadow: 'shadow-[0_0_20px_rgba(234,179,8,0.3)]', name: 'GOD MODE V3', exe: 'GOD_CORE_V3.exe' };
+      case 'BEAST_MODE': 
+        return { icon: Flame, color: 'text-red-600 dark:text-red-500', border: 'border-red-600', shadow: 'shadow-[0_0_20px_rgba(220,38,38,0.3)]', name: 'BEAST MODE V4', exe: 'BEAST_CORE_V4.exe' };
+      case 'ENIGMA_OTE': 
+        return { icon: Eye, color: 'text-purple-600 dark:text-purple-500', border: 'border-purple-600', shadow: 'shadow-[0_0_20px_rgba(147,51,234,0.3)]', name: 'ENIGMA OTE V5', exe: 'ENIGMA_CORE_V5.exe' };
+      default: 
+        return { icon: Cpu, color: 'text-blue-500 dark:text-blue-400', border: 'border-blue-500', shadow: 'shadow-[0_0_20px_rgba(59,130,246,0.3)]', name: 'AGENTIC AI', exe: 'AI_CORE.exe' };
+    }
+  };
+  const visual = getBotVisuals(botType);
+  const BotIcon = visual.icon;
+
   const renderRobotAnimation = () => {
     switch (robotState) {
       case 'AI_ANALYZING': return animUrl.AI_ANALYZING;
@@ -251,7 +309,6 @@ export default function Dashboard() {
     }
   };
 
-  // Penyesuaian Warna Terminal (Support Light & Dark Mode)
   const getTerminalColor = (type) => {
     switch(type) {
       case 'AI_ANALYZING': return 'text-purple-600 dark:text-purple-400';
@@ -259,8 +316,8 @@ export default function Dashboard() {
       case 'SHIELD_ACTIVE': return 'text-cyan-600 dark:text-cyan-400';
       case 'PROFIT_SECURED': return 'text-green-600 dark:text-green-400 font-bold drop-shadow-sm';
       case 'SYSTEM_ERROR': return 'text-red-600 dark:text-red-500 font-black uppercase'; 
-      case 'SCANNING_IDLE': return 'text-slate-500 dark:text-gray-400'; // Log siklik
-      default: return 'text-blue-600 dark:text-blue-300'; // Real socket log
+      case 'SCANNING_IDLE': return 'text-slate-500 dark:text-gray-400'; 
+      default: return 'text-blue-600 dark:text-blue-300'; 
     }
   }
 
@@ -347,120 +404,120 @@ export default function Dashboard() {
       </div>
 
       
-      {/* 7.2 AI COMMAND CENTER (ADAPTIVE LIGHT/DARK MODE) */}
-      <div className={`border rounded-3xl p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 relative overflow-hidden transition-all duration-500
-        ${!wsConnected 
-          ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/50 shadow-md' 
-          : 'bg-[var(--card-bg)] border-[var(--card-border)] dark:border-[var(--primary)]/30 shadow-lg dark:shadow-[0_0_20px_rgba(59,130,246,0.15)]'}`}
-      >
-        {/* HUD TARGETING BRACKETS */}
-        <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-[var(--primary)]/30 dark:border-[var(--primary)]/40 rounded-tl-lg pointer-events-none"></div>
-        <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-[var(--primary)]/30 dark:border-[var(--primary)]/40 rounded-tr-lg pointer-events-none"></div>
-        <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-[var(--primary)]/30 dark:border-[var(--primary)]/40 rounded-bl-lg pointer-events-none"></div>
-        <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-[var(--primary)]/30 dark:border-[var(--primary)]/40 rounded-br-lg pointer-events-none"></div>
+      {/* 7.2 CONDITIONAL RENDERING: AI COMMAND CENTER (ONLY FOR MACHINE LEARNING BOTS) */}
+      {botType !== "NON_ML" && (
+        <div className={`border rounded-3xl p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 relative overflow-hidden transition-all duration-500
+          ${!wsConnected 
+            ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/50 shadow-md' 
+            : `bg-[var(--card-bg)] border-[var(--card-border)] dark:${visual.border}/30 shadow-lg dark:${visual.shadow}`}`}
+        >
+          {/* HUD TARGETING BRACKETS */}
+          <div className={`absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 ${visual.color} opacity-40 rounded-tl-lg pointer-events-none`}></div>
+          <div className={`absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 ${visual.color} opacity-40 rounded-tr-lg pointer-events-none`}></div>
+          <div className={`absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 ${visual.color} opacity-40 rounded-bl-lg pointer-events-none`}></div>
+          <div className={`absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 ${visual.color} opacity-40 rounded-br-lg pointer-events-none`}></div>
 
-        {/* Panel Kiri: Robot & Status */}
-        <div className="flex flex-col items-center justify-center text-center space-y-5 relative z-10">
-          <div className="relative">
-            {/* Outer Orbit Ring */}
-            <div className="absolute -inset-3 rounded-full border-[1.5px] border-dashed border-blue-400/40 dark:border-blue-500/30 animate-[spin_15s_linear_infinite] pointer-events-none hidden md:block"></div>
-            
-            <div className={`w-24 h-24 md:w-32 md:h-32 flex-shrink-0 bg-slate-50 dark:bg-gray-900 rounded-full border-4 flex items-center justify-center p-2 overflow-hidden relative z-10 transition-colors
-              ${!wsConnected 
-                ? 'border-red-400 dark:border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.3)] dark:shadow-[0_0_30px_rgba(239,68,68,0.5)]' 
-                : 'border-blue-300 dark:border-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.2)] dark:shadow-[0_0_30px_rgba(59,130,246,0.5)]'}`}
-            >
-              {robotState === 'SCANNING' ? (
-                <>
-                  <div className="absolute inset-0 w-full h-full animate-[spin_2s_linear_infinite] rounded-full bg-[conic-gradient(from_0deg,transparent_70%,rgba(59,130,246,0.5)_100%)] dark:bg-[conic-gradient(from_0deg,transparent_70%,rgba(59,130,246,0.8)_100%)]"></div>
-                  <div className="absolute inset-2 md:inset-3 rounded-full border border-blue-300/50 dark:border-blue-400/30"></div>
-                  <div className="absolute inset-6 md:inset-8 rounded-full border border-blue-300/30 dark:border-blue-400/10"></div>
-                  <div className="absolute w-full h-[1px] bg-blue-300/50 dark:bg-blue-400/20"></div>
-                  <div className="absolute h-full w-[1px] bg-blue-300/50 dark:bg-blue-400/20"></div>
-                  <div className="relative z-10 bg-white dark:bg-gray-900 p-2 rounded-full border border-blue-200 dark:border-blue-500/50 shadow-sm dark:shadow-[0_0_15px_rgba(59,130,246,0.6)]">
-                    <Cpu size={24} className="text-blue-500 dark:text-blue-400 animate-pulse" />
-                  </div>
-                </>
-              ) : renderRobotAnimation() ? (
-                <Lottie key={robotState} path={renderRobotAnimation()} loop={true} autoplay={true} style={{ width: '100%', height: '100%', position: 'relative', zIndex: 10 }} />
-              ) : (
-                <Cpu size={40} className={!wsConnected ? "text-red-500 animate-pulse" : "text-blue-500 animate-pulse"} />
-              )}
-            </div>
-          </div>
-          
-          <div className="flex flex-col items-center">
-            <h3 className={`text-lg font-black uppercase tracking-widest flex items-center justify-center gap-2
-              ${!wsConnected ? "text-red-600 dark:text-red-500" : "text-[var(--primary)]"}`}>
-              <Cpu size={18}/> Agentic AI Core
-            </h3>
-            
-            <p className={`text-xl font-mono mt-0.5 font-bold tracking-widest transition-colors duration-300
-              ${!wsConnected ? 'text-red-600 dark:text-red-500 drop-shadow-sm dark:drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 
-                robotState === 'SCANNING' ? 'text-blue-600 dark:text-cyan-400 drop-shadow-sm dark:drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]' :
-                'text-green-600 dark:text-green-400 drop-shadow-sm dark:drop-shadow-[0_0_8px_rgba(74,222,128,0.8)]'}`}
-            >
-              [{robotState.replace('_', ' ')}]
-            </p>
-
-            {/* DYNAMIC TELEMETRY BADGES */}
-            <div className="flex gap-4 justify-center mt-3 text-[9px] font-mono font-bold text-[var(--muted-foreground)] uppercase tracking-widest bg-slate-50 dark:bg-[var(--background)] px-3 py-1.5 rounded-md border border-slate-200 dark:border-[var(--card-border)] shadow-sm dark:shadow-inner transition-colors">
-               <span className="flex items-center gap-1">
-                 <Activity size={10} className={wsConnected ? "text-blue-500 dark:text-blue-400" : "text-gray-400"}/> 
-                 {wsConnected && ping > 0 ? `${ping}ms` : '--'}
-               </span>
-               <span className="flex items-center gap-1"><Server size={10} className="text-purple-500 dark:text-purple-400"/> v3.XGB</span>
-               <span className="flex items-center gap-1"><Activity size={10} className="text-green-500 dark:text-green-400"/> 94% ACC</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Panel Kanan: Live Terminal Shell (Light Gray in Light Mode, Pitch Black in Dark Mode) */}
-        <div className="md:col-span-2 bg-slate-100 dark:bg-[#050505] rounded-2xl border border-slate-300 dark:border-gray-800 p-4 font-mono text-[11px] sm:text-xs h-48 sm:h-56 overflow-y-auto flex flex-col gap-2 shadow-inner relative custom-scrollbar z-10 group transition-colors duration-500">
-          
-          {/* CRT Scanlines Effect */}
-          <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.06] text-black dark:text-white transition-opacity z-0" 
-               style={{ backgroundImage: 'linear-gradient(currentColor 1px, transparent 1px)', backgroundSize: '100% 3px' }}>
-          </div>
-
-          <div className="sticky top-0 bg-slate-100/90 dark:bg-[#050505]/90 pb-2 border-b border-slate-300 dark:border-gray-800 mb-2 flex justify-between items-center z-10 backdrop-blur-md transition-colors duration-500">
-             <span className="text-slate-500 dark:text-gray-500 font-bold flex items-center gap-2 tracking-widest text-[10px] md:text-xs">
-               <Terminal size={14} className="text-slate-400 dark:text-gray-400"/> 
-               BLACK_CATCHER_V3.exe
-               
-               {/* DYNAMIC CONNECTION BADGE */}
-               {wsConnected ? (
-                 <span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-500 rounded text-[8px] animate-pulse">LINK ONLINE</span>
-               ) : (
-                 <span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-500 rounded text-[8px] animate-pulse">LINK OFFLINE</span>
-               )}
-             </span>
-             <span className="flex gap-1.5">
-               <div className="w-2.5 h-2.5 rounded-full bg-red-500/80 shadow-sm"></div>
-               <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80 shadow-sm"></div>
-               <div className="w-2.5 h-2.5 rounded-full bg-green-500/80 shadow-sm"></div>
-             </span>
-          </div>
-
-          <div className="z-10 flex flex-col gap-2 flex-grow">
-            {terminalLogs.map((log, i) => (
-              <div key={i} className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <span className="text-slate-400 dark:text-gray-600 shrink-0">[{log.time}]</span>
-                <span className={`break-words ${getTerminalColor(log.type)}`}>
-                  <span className="opacity-50 mr-1">{log.type.includes('SCANNING') ? '>' : '>>'}</span> {log.text}
-                </span>
+          {/* Panel Kiri: Robot & Status */}
+          <div className="flex flex-col items-center justify-center text-center space-y-5 relative z-10">
+            <div className="relative">
+              {/* Outer Orbit Ring */}
+              <div className={`absolute -inset-3 rounded-full border-[1.5px] border-dashed ${visual.border} opacity-40 animate-[spin_15s_linear_infinite] pointer-events-none hidden md:block`}></div>
+              
+              <div className={`w-24 h-24 md:w-32 md:h-32 flex-shrink-0 bg-slate-50 dark:bg-gray-900 rounded-full border-4 flex items-center justify-center p-2 overflow-hidden relative z-10 transition-colors
+                ${!wsConnected 
+                  ? 'border-red-400 dark:border-red-500/50 shadow-[0_0_20px_rgba(239,68,68,0.3)]' 
+                  : `dark:${visual.border}/50 dark:${visual.shadow}`}`}
+              >
+                {robotState === 'SCANNING' ? (
+                  <>
+                    <div className={`absolute inset-0 w-full h-full animate-[spin_2s_linear_infinite] rounded-full bg-[conic-gradient(from_0deg,transparent_70%,currentColor_100%)] ${visual.color} opacity-30 dark:opacity-80`}></div>
+                    <div className={`absolute inset-2 md:inset-3 rounded-full border ${visual.border} opacity-50`}></div>
+                    <div className={`absolute inset-6 md:inset-8 rounded-full border ${visual.border} opacity-20`}></div>
+                    <div className={`absolute w-full h-[1px] bg-current ${visual.color} opacity-30`}></div>
+                    <div className={`absolute h-full w-[1px] bg-current ${visual.color} opacity-30`}></div>
+                    <div className={`relative z-10 bg-white dark:bg-gray-900 p-2 rounded-full border ${visual.border} dark:border-opacity-50 shadow-sm dark:${visual.shadow}`}>
+                      <BotIcon size={24} className={`${visual.color} animate-pulse`} />
+                    </div>
+                  </>
+                ) : renderRobotAnimation() ? (
+                  <Lottie key={robotState} path={renderRobotAnimation()} loop={true} autoplay={true} style={{ width: '100%', height: '100%', position: 'relative', zIndex: 10 }} />
+                ) : (
+                  <BotIcon size={40} className={!wsConnected ? "text-red-500 animate-pulse" : `${visual.color} animate-pulse`} />
+                )}
               </div>
-            ))}
-            
-            <div className="flex gap-3">
-               <span className="text-slate-400 dark:text-gray-600 shrink-0">[{new Date().toLocaleTimeString('en-US', { hour12: false })}]</span>
-               <span className="text-slate-500 dark:text-gray-400 animate-[pulse_1s_ease-in-out_infinite]">_</span>
             </div>
             
-            <div ref={terminalEndRef} />
+            <div className="flex flex-col items-center">
+              <h3 className={`text-lg font-black uppercase tracking-widest flex items-center justify-center gap-2
+                ${!wsConnected ? "text-red-600 dark:text-red-500" : visual.color}`}>
+                <BotIcon size={18}/> {visual.name}
+              </h3>
+              
+              <p className={`text-xl font-mono mt-0.5 font-bold tracking-widest transition-colors duration-300
+                ${!wsConnected ? 'text-red-600 dark:text-red-500 drop-shadow-sm dark:drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 
+                  robotState === 'SCANNING' ? `${visual.color} drop-shadow-sm` :
+                  'text-green-600 dark:text-green-400 drop-shadow-sm dark:drop-shadow-[0_0_8px_rgba(74,222,128,0.8)]'}`}
+              >
+                [{robotState.replace('_', ' ')}]
+              </p>
+
+              {/* DYNAMIC TELEMETRY BADGES */}
+              <div className="flex gap-4 justify-center mt-3 text-[9px] font-mono font-bold text-[var(--muted-foreground)] uppercase tracking-widest bg-slate-50 dark:bg-[var(--background)] px-3 py-1.5 rounded-md border border-slate-200 dark:border-[var(--card-border)] shadow-sm dark:shadow-inner transition-colors">
+                 <span className="flex items-center gap-1">
+                   <Activity size={10} className={wsConnected ? "text-blue-500 dark:text-blue-400" : "text-gray-400"}/> 
+                   {wsConnected && ping > 0 ? `${ping}ms` : '--'}
+                 </span>
+                 <span className="flex items-center gap-1"><Server size={10} className={`${visual.color}`}/> Node:{wsPort}</span>
+                 <span className="flex items-center gap-1"><Activity size={10} className="text-green-500 dark:text-green-400"/> ML Core</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Panel Kanan: Live Terminal Shell */}
+          <div className="md:col-span-2 bg-slate-100 dark:bg-[#050505] rounded-2xl border border-slate-300 dark:border-gray-800 p-4 font-mono text-[11px] sm:text-xs h-48 sm:h-56 overflow-y-auto flex flex-col gap-2 shadow-inner relative custom-scrollbar z-10 group transition-colors duration-500">
+            
+            <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.06] text-black dark:text-white transition-opacity z-0" 
+                 style={{ backgroundImage: 'linear-gradient(currentColor 1px, transparent 1px)', backgroundSize: '100% 3px' }}>
+            </div>
+
+            <div className="sticky top-0 bg-slate-100/90 dark:bg-[#050505]/90 pb-2 border-b border-slate-300 dark:border-gray-800 mb-2 flex justify-between items-center z-10 backdrop-blur-md transition-colors duration-500">
+               <span className="text-slate-500 dark:text-gray-500 font-bold flex items-center gap-2 tracking-widest text-[10px] md:text-xs">
+                 <Terminal size={14} className="text-slate-400 dark:text-gray-400"/> 
+                 {visual.exe}
+                 
+                 {wsConnected ? (
+                   <span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 bg-green-500/10 border border-green-500/30 text-green-600 dark:text-green-500 rounded text-[8px] animate-pulse">LINK ONLINE</span>
+                 ) : (
+                   <span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-500 rounded text-[8px] animate-pulse">LINK OFFLINE</span>
+                 )}
+               </span>
+               <span className="flex gap-1.5">
+                 <div className="w-2.5 h-2.5 rounded-full bg-red-500/80 shadow-sm"></div>
+                 <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80 shadow-sm"></div>
+                 <div className="w-2.5 h-2.5 rounded-full bg-green-500/80 shadow-sm"></div>
+               </span>
+            </div>
+
+            <div className="z-10 flex flex-col gap-2 flex-grow">
+              {terminalLogs.map((log, i) => (
+                <div key={i} className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <span className="text-slate-400 dark:text-gray-600 shrink-0">[{log.time}]</span>
+                  <span className={`break-words ${getTerminalColor(log.type)}`}>
+                    <span className="opacity-50 mr-1">{log.type.includes('SCANNING') ? '>' : '>>'}</span> {log.text}
+                  </span>
+                </div>
+              ))}
+              
+              <div className="flex gap-3">
+                 <span className="text-slate-400 dark:text-gray-600 shrink-0">[{getGMT8Time()}]</span>
+                 <span className="text-slate-500 dark:text-gray-400 animate-[pulse_1s_ease-in-out_infinite]">_</span>
+              </div>
+              
+              <div ref={terminalEndRef} />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* 7.3 PERFORMANCE STATS BOXES */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

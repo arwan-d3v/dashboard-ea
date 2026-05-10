@@ -3,10 +3,12 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react"; // Tambahkan ini
+import { useState, useEffect } from "react"; 
+
+// JADIKAN SATU BLOK IMPORT LUCIDE-REACT SEPERTI INI:
 import { 
   LayoutDashboard, Key, ShieldCheck, BarChart, 
-  AlertCircle, LogOut, UserPlus, Sun, Moon // Tambahkan Sun & Moon
+  AlertCircle, LogOut, UserPlus, Sun, Moon, Cpu 
 } from "lucide-react";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -14,6 +16,8 @@ import { auth } from "../lib/firebase";
 import { signOut } from "firebase/auth";
 
 const inter = Inter({ subsets: ["latin"] });
+
+// ... (lanjutkan ke fungsi AppNavbar seperti biasa) ...
 
 function AppNavbar() {
   const pathname = usePathname();
@@ -106,6 +110,10 @@ function AppNavbar() {
 
               <Link href="/user-management" className={`px-3 py-2 text-xs sm:text-sm font-bold rounded-lg flex items-center gap-1.5 transition ml-1 ${pathname === '/user-management' ? 'bg-purple-500 text-white' : 'bg-purple-500/10 text-purple-500 hover:bg-purple-500/20'}`}>
                 <UserPlus size={16}/> <span className="hidden md:inline">Users</span>
+              </Link>
+
+              <Link href="/ea-manager" className={`px-3 py-2 text-xs sm:text-sm font-bold rounded-lg flex items-center gap-1.5 transition ml-1 ${pathname === '/ea-manager' ? 'bg-blue-500 text-white shadow-md' : 'bg-blue-500/10 text-blue-500 hover:bg-blue-500/20'}`}>
+                <Cpu size={16}/> <span className="hidden md:inline">EA Control</span>
               </Link>
             </>
           )}
