@@ -16,7 +16,6 @@ import {
 } from 'recharts';
 import { db } from "../lib/firebase";
 import { ref, onValue } from "firebase/database";
-// HAPUS import socket.io-client
 import dynamic from 'next/dynamic';
 
 const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
@@ -53,7 +52,9 @@ export default function Dashboard() {
   const [robotState, setRobotState] = useState('SCANNING');
   const [tradeInfo, setTradeInfo] = useState('Waiting for neural connection...');
   const [terminalLogs, setTerminalLogs] = useState([]);
-  const terminalEndRef = useRef(null);
+  
+  // PERBAIKAN SCROLL: Menggunakan referensi pada kontainer utama, bukan elemen paling bawah
+  const terminalContainerRef = useRef(null);
 
   // Extract Metadata per Akun
   const currentAccountData = allAccountsData[selectedAccountId] || {};
@@ -84,12 +85,11 @@ export default function Dashboard() {
   const BotIcon = theme.icon;
 
   // ==========================================
-  // SECTION 5: FIREBASE CLOUD NODE CONNECTION (REPLACES WEBSOCKETS)
+  // SECTION 5: FIREBASE CLOUD NODE CONNECTION
   // ==========================================
   const terminalData = currentAccountData?.ai_terminal;
   const lastLogTimeRef = useRef(0);
 
-  // 5.1 Reset Terminal saat ganti akun/tipe bot
   useEffect(() => {
     if (botType === "NON_ML") {
       setWsConnected(false);
@@ -102,7 +102,6 @@ export default function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAccountId, botType]);
 
-  // 5.2 Listener Data Terminal dari Firebase
   useEffect(() => {
     if (botType === "NON_ML") return;
 
@@ -110,7 +109,6 @@ export default function Dashboard() {
       const now = Date.now();
       const nodeTime = terminalData.timestamp || 0;
 
-      // Cek Heartbeat (Jika VPS update Firebase < 25 detik lalu = ONLINE)
       if (now - nodeTime < 25000) {
         if (!wsConnected) setWsConnected(true);
       } else {
@@ -118,10 +116,8 @@ export default function Dashboard() {
         setRobotState('SYSTEM_ERROR');
       }
 
-      // Update status animasi robot
       if (terminalData.status) setRobotState(terminalData.status);
 
-      // Tambah log baru HANYA JIKA timestamp berbeda dari sebelumnya
       if (terminalData.info && terminalData.timestamp !== lastLogTimeRef.current) {
         lastLogTimeRef.current = terminalData.timestamp;
         setTerminalLogs(prev => [...prev, { time: getGMT8Time(), text: terminalData.info, type: terminalData.status }].slice(-40));
@@ -130,7 +126,6 @@ export default function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terminalData, botType]);
 
-  // 5.3 Watchdog Timer (Pendeteksi Offline)
   useEffect(() => {
     if (botType === "NON_ML") return;
     
@@ -145,7 +140,6 @@ export default function Dashboard() {
     return () => clearInterval(watchdog);
   }, [botType]);
 
-  // 5.4 Dynamic Ping Simulator Visual
   useEffect(() => {
     if (!wsConnected) {
       setPing(0); return;
@@ -154,7 +148,6 @@ export default function Dashboard() {
     return () => clearInterval(pingInterval);
   }, [wsConnected]);
 
-  // 5.5 Inner Monologue AI
   useEffect(() => {
     if (!wsConnected || robotState !== 'SCANNING') return;
     const idleLogInterval = setInterval(() => {
@@ -174,7 +167,15 @@ export default function Dashboard() {
     return () => clearInterval(idleLogInterval);
   }, [wsConnected, robotState, botType]);
 
-  useEffect(() => { terminalEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [terminalLogs]);
+  // PERBAIKAN SCROLL: Hanya men-scroll kotak terminalnya saja, bukan layarnya!
+  useEffect(() => { 
+    if (terminalContainerRef.current) {
+      terminalContainerRef.current.scrollTo({
+        top: terminalContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [terminalLogs]);
 
   // ==========================================
   // SECTION 6: FIREBASE DATA FETCHING (MASTER)
@@ -243,29 +244,8 @@ export default function Dashboard() {
       };
     });
 
-  const renderRobotAnimation = () => {
-    switch (robotState) {
-      case 'AI_ANALYZING': return animUrl.AI_ANALYZING;
-      case 'ENTRY_EXECUTION': return animUrl.ENTRY_EXECUTION;
-      case 'SHIELD_ACTIVE': return animUrl.SHIELD_ACTIVE;
-      case 'PROFIT_SECURED': return animUrl.PROFIT_SECURED;
-      case 'SYSTEM_ERROR': return animUrl.SYSTEM_ERROR; 
-      case 'SCANNING': default: return null; 
-    }
-  };
-
-  const getTerminalLogColor = (type) => {
-    if (type === 'SYSTEM') return theme.sysText;
-    if (type === 'SCANNING_IDLE') return 'text-slate-500 dark:text-gray-500';
-    if (type === 'SYSTEM_ERROR') return 'text-red-500 font-black';
-    if (type === 'PROFIT_SECURED') return 'text-green-500 font-bold';
-    if (type === 'ENTRY_EXECUTION') return 'text-orange-500 font-bold';
-    return theme.termText;
-  };
-
   if (isLoading) return <div className="flex justify-center items-center h-screen font-bold text-[var(--primary)] animate-pulse text-xl">Connecting to Server...</div>;
   
-  // PENYELESAIAN BUG: Hapus pengecekan `!liveData.balance` agar Header dan Dashboard tetap muncul walau data kosong.
   if (accountsList.length === 0) return (
     <div className="flex flex-col items-center justify-center h-[80vh] space-y-4">
       <AlertTriangle size={64} className="text-orange-500 opacity-50" />
@@ -279,7 +259,7 @@ export default function Dashboard() {
   return (
     <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto font-sans transition-colors duration-300">
       
-      {/* 8.1 HEADER PORTFOLIO & KONTROL AKUN (TAMPIL SELALU) */}
+      {/* 8.1 HEADER PORTFOLIO & KONTROL AKUN */}
       <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-3xl p-6 md:p-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 shadow-sm relative overflow-hidden">
         
         <div className="z-10 w-full lg:w-auto">
@@ -347,80 +327,54 @@ export default function Dashboard() {
       </div>
 
       
-      {/* 8.2 DYNAMIC AI COMMAND CENTER (HANYA MUNCUL JIKA BUKAN NON_ML) */}
+      {/* 8.2 DYNAMIC AI COMMAND CENTER */}
       {botType !== "NON_ML" && (
         <div className={`border rounded-3xl p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 relative overflow-hidden transition-all duration-700
           bg-[var(--card-bg)] ${theme.border} ${wsConnected ? theme.glow : 'shadow-none opacity-80'}`}
         >
-          {/* HUD TARGETING BRACKETS */}
           <div className={`absolute top-4 left-4 w-10 h-10 border-t-4 border-l-4 ${theme.brackets} ${wsConnected ? 'opacity-60' : 'opacity-30'} rounded-tl-xl pointer-events-none`}></div>
           <div className={`absolute top-4 right-4 w-10 h-10 border-t-4 border-r-4 ${theme.brackets} ${wsConnected ? 'opacity-60' : 'opacity-30'} rounded-tr-xl pointer-events-none`}></div>
           <div className={`absolute bottom-4 left-4 w-10 h-10 border-b-4 border-l-4 ${theme.brackets} ${wsConnected ? 'opacity-60' : 'opacity-30'} rounded-bl-xl pointer-events-none`}></div>
           <div className={`absolute bottom-4 right-4 w-10 h-10 border-b-4 border-r-4 ${theme.brackets} ${wsConnected ? 'opacity-60' : 'opacity-30'} rounded-br-xl pointer-events-none`}></div>
 
-          {/* Panel Kiri: Robot & Status */}
           <div className="flex flex-col items-center justify-center text-center space-y-4 relative z-10">
-            
             <div className={`w-32 h-32 flex-shrink-0 rounded-full flex items-center justify-center p-2 relative
               ${theme.bg} border-2 ${theme.border}`}>
-              
               {robotState === 'SCANNING' && (
                 <>
-                  {botType === 'GOD_MODE' && (
-                    <div className={`absolute inset-0 rounded-full drop-shadow-[0_0_15px_currentColor] ${theme.accent} opacity-70`}></div>
-                  )}
-
-                  {botType === 'BEAST_MODE' && (
-                    <div className={`absolute inset-0 rounded-full border-4 ${theme.border} animate-pulse opacity-80 shadow-[0_0_20px_currentColor] ${theme.accent}`}></div>
-                  )}
-
-                  {botType === 'ENIGMA_OTE' && (
-                    <>
-                      <div className={`absolute inset-0 animate-[spin_4s_linear_infinite] rounded-full bg-[conic-gradient(from_0deg,transparent_70%,currentColor_100%)] ${theme.accent} opacity-50`}></div>
-                      <div className={`absolute inset-2 rounded-full border ${theme.border} opacity-40`}></div>
-                    </>
-                  )}
+                  {botType === 'GOD_MODE' && (<div className={`absolute inset-0 rounded-full drop-shadow-[0_0_15px_currentColor] ${theme.accent} opacity-70`}></div>)}
+                  {botType === 'BEAST_MODE' && (<div className={`absolute inset-0 rounded-full border-4 ${theme.border} animate-pulse opacity-80 shadow-[0_0_20px_currentColor] ${theme.accent}`}></div>)}
+                  {botType === 'ENIGMA_OTE' && (<><div className={`absolute inset-0 animate-[spin_4s_linear_infinite] rounded-full bg-[conic-gradient(from_0deg,transparent_70%,currentColor_100%)] ${theme.accent} opacity-50`}></div><div className={`absolute inset-2 rounded-full border ${theme.border} opacity-40`}></div></>)}
                 </>
               )}
-              
               <div className="relative z-10 w-full h-full flex items-center justify-center">
-                {robotState !== 'SCANNING' ? (
-                  <Lottie path={animUrl[robotState]} loop autoplay style={{width: '90%'}}/>
-                ) : <BotIcon size={56} className={`${theme.accent} transition-colors duration-500`} />}
+                {robotState !== 'SCANNING' ? (<Lottie path={animUrl[robotState]} loop autoplay style={{width: '90%'}}/>) : <BotIcon size={56} className={`${theme.accent} transition-colors duration-500`} />}
               </div>
             </div>
             
             <div>
-              <h3 className={`text-xl font-black uppercase tracking-tighter flex items-center justify-center gap-2 drop-shadow-sm ${theme.accent}`}>
-                {theme.name}
-              </h3>
+              <h3 className={`text-xl font-black uppercase tracking-tighter flex items-center justify-center gap-2 drop-shadow-sm ${theme.accent}`}>{theme.name}</h3>
               <p className="text-[10px] font-mono font-bold text-[var(--muted-foreground)] uppercase tracking-widest">{theme.vibe}</p>
             </div>
 
             <div className="flex gap-4 bg-[var(--background)] px-4 py-2 rounded-xl border border-[var(--card-border)] shadow-inner">
-               <span className="flex items-center gap-1 text-[10px] font-bold transition-colors">
-                 <Activity size={12} className={wsConnected ? "text-blue-500 animate-pulse" : "text-gray-500"}/> 
-                 {wsConnected ? `${ping}ms` : '--'}
-               </span>
+               <span className="flex items-center gap-1 text-[10px] font-bold transition-colors"><Activity size={12} className={wsConnected ? "text-blue-500 animate-pulse" : "text-gray-500"}/> {wsConnected ? `${ping}ms` : '--'}</span>
                <span className="flex items-center gap-1 text-[10px] font-bold"><Server size={12} className={theme.accent}/> Cloud Sync</span>
             </div>
           </div>
 
-          {/* Panel Kanan: Live Terminal Bash */}
-          <div className={`md:col-span-2 rounded-2xl border ${theme.border} p-4 font-mono text-[11px] sm:text-xs h-60 overflow-y-auto flex flex-col gap-2 relative shadow-inner group transition-colors duration-500 ${theme.termBg}`}>
-            
-            <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.06] text-black dark:text-white transition-opacity z-0" 
-                 style={{ backgroundImage: 'linear-gradient(currentColor 1px, transparent 1px)', backgroundSize: '100% 3px' }}></div>
+          {/* PERBAIKAN SCROLL: Menambahkan ref ke parent div yang menampung log dan memiliki overflow */}
+          <div 
+            ref={terminalContainerRef}
+            className={`md:col-span-2 rounded-2xl border ${theme.border} p-4 font-mono text-[11px] sm:text-xs h-60 overflow-y-auto flex flex-col gap-2 relative shadow-inner group transition-colors duration-500 ${theme.termBg}`}
+          >
+            <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.06] text-black dark:text-white transition-opacity z-0" style={{ backgroundImage: 'linear-gradient(currentColor 1px, transparent 1px)', backgroundSize: '100% 3px' }}></div>
 
             <div className={`sticky top-0 pb-2 border-b border-slate-300 dark:border-gray-800 mb-2 flex justify-between items-center z-10 backdrop-blur-md transition-colors duration-500 ${theme.termBg}/90`}>
                <span className="text-slate-500 dark:text-gray-500 font-bold flex items-center gap-2 tracking-widest text-[10px] md:text-xs uppercase">
                  <Terminal size={14} className="text-slate-400 dark:text-gray-400"/> 
                  {theme.exe}
-                 {wsConnected ? (
-                   <span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-500 rounded text-[8px] animate-pulse">LINK ONLINE</span>
-                 ) : (
-                   <span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-500 rounded text-[8px]">LINK OFFLINE</span>
-                 )}
+                 {wsConnected ? (<span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-500 rounded text-[8px] animate-pulse">LINK ONLINE</span>) : (<span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-500 rounded text-[8px]">LINK OFFLINE</span>)}
                </span>
                <div className="flex gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-red-500/70"></div><div className="w-2.5 h-2.5 rounded-full bg-yellow-500/70"></div><div className="w-2.5 h-2.5 rounded-full bg-green-500/70"></div></div>
             </div>
@@ -435,13 +389,12 @@ export default function Dashboard() {
                 </div>
               ))}
               <div className="flex gap-3"><span className="text-slate-400 dark:text-gray-600 shrink-0">[{getGMT8Time()}]</span><span className={`${theme.accent} animate-pulse`}>_</span></div>
-              <div ref={terminalEndRef} />
             </div>
           </div>
         </div>
       )}
 
-      {/* 8.3 FINANCIAL METRICS (SELALU TAMPIL) */}
+      {/* 8.3 FINANCIAL METRICS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 transition-transform duration-500">
         {[
           { label: 'Growth', val: `${Number(liveData.absolute_growth_percent || 0) > 0 ? '+' : ''}${formatPct(liveData.absolute_growth_percent)}`, sub: 'Absolute Gain', icon: TrendingUp, color: 'text-green-500' },
@@ -457,7 +410,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* 8.4 CASH FLOW LEDGER (SELALU TAMPIL) */}
+      {/* 8.4 CASH FLOW LEDGER */}
       <div className="bg-[var(--muted)]/50 rounded-2xl p-5 border border-[var(--card-border)] flex flex-wrap gap-4 justify-between items-center shadow-sm">
         {[
           { label: 'Initial Deposit', val: formatCur(liveData.initial_deposit), icon: Wallet, c: 'text-blue-500' },
@@ -480,7 +433,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 8.5 CHART & 5-DAYS HISTORY (SELALU TAMPIL) */}
+      {/* 8.5 CHART & 5-DAYS HISTORY */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] p-6 shadow-sm">
           <h3 className="font-bold text-sm text-[var(--foreground)] mb-6 flex items-center gap-2"><Activity size={16} className="text-[var(--primary)]"/> Growth Trajectory</h3>
@@ -529,7 +482,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 8.6 LIVE OPEN POSITIONS TABLE (SELALU TAMPIL) */}
+      {/* 8.6 LIVE OPEN POSITIONS TABLE */}
       <div className="bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] shadow-sm overflow-hidden transition-all duration-500">
         <div className="p-5 border-b border-[var(--card-border)] flex justify-between items-center bg-[var(--muted)]/20">
           <h3 className="font-bold text-sm text-[var(--foreground)] flex items-center gap-2"><Clock size={16} className="text-blue-500" /> LIVE MARKET EXPOSURE ({openTrades.length})</h3>
