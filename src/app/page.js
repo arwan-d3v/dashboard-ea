@@ -9,7 +9,7 @@ import {
   Wallet, ArrowDownToLine, ArrowUpFromLine, 
   CalendarDays, BarChart3, Clock, AlertTriangle, 
   Server, User, ChevronDown, Cpu, Terminal, 
-  Crown, Flame, Radar 
+  Crown, PawPrint, Radar, Binary 
 } from "lucide-react";
 import { 
   Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart 
@@ -37,9 +37,6 @@ const animUrl = {
 // ============================================================================
 export default function Dashboard() {
   
-  // ==========================================
-  // SECTION 4: STATE MANAGEMENT
-  // ==========================================
   const [lang, setLang] = useState("en"); 
   const [allAccountsData, setAllAccountsData] = useState({});
   const [accountsList, setAccountsList] = useState([]);
@@ -50,33 +47,28 @@ export default function Dashboard() {
   const [wsConnected, setWsConnected] = useState(false);
   const [ping, setPing] = useState(0);
   const [robotState, setRobotState] = useState('SCANNING');
-  const [tradeInfo, setTradeInfo] = useState('Waiting for neural connection...');
   const [terminalLogs, setTerminalLogs] = useState([]);
-  
-  // PERBAIKAN SCROLL: Menggunakan referensi pada kontainer utama, bukan elemen paling bawah
-  const terminalContainerRef = useRef(null);
 
   // Extract Metadata per Akun
   const currentAccountData = allAccountsData[selectedAccountId] || {};
   const metaData = currentAccountData.metadata || {};
   const botType = metaData.bot_type || "NON_ML";
-  const vpsIp = metaData.vps_ip || "";
-  const wsPort = metaData.ws_port || "";
-
   const brokerName = metaData.broker || "MT5_SERVER"; 
   const accountName = metaData.investor_name || "KRX_INVESTOR";
 
   const getGMT8Time = () => new Date().toLocaleTimeString('en-US', { hour12: false, timeZone: 'Asia/Singapore' });
 
-  // PENGATURAN KEPRIBADIAN BOT
+  // ==========================================
+  // SECTION 4: BOT THEME DICTIONARY
+  // ==========================================
   const getBotTheme = (type) => {
     switch(type) {
       case 'GOD_MODE':
         return { name: "KRX - GOD HEALER", icon: Crown, exe: "GOD_CORE_V3.exe", vibe: "High Precision | Golden Ratio Exec", accent: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500/40", brackets: "border-amber-500", glow: "shadow-[0_0_25px_rgba(245,158,11,0.25)]", termBg: "bg-slate-900 dark:bg-[#030712]", termText: "text-amber-400", sysText: "text-blue-400" };
       case 'BEAST_MODE':
-        return { name: "KRX - BEAST WATCHER", icon: Flame, exe: "BEAST_CORE_V4.exe", vibe: "Liquidity Hunter | Maximum Volume", accent: "text-red-600 dark:text-red-500", bg: "bg-red-500/10", border: "border-red-500/50", brackets: "border-red-600 dark:border-red-500", glow: "shadow-[0_0_35px_rgba(239,68,68,0.4)] animate-pulse", termBg: "bg-red-950/20 dark:bg-[#0a0000]", termText: "text-red-500", sysText: "text-orange-500" };
+        return { name: "KRX - BEAST WATCHER", icon: PawPrint, exe: "BEAST_CORE_V4.exe", vibe: "Liquidity Hunter | Maximum Volume", accent: "text-red-600 dark:text-red-500", bg: "bg-red-500/10", border: "border-red-500/50", brackets: "border-red-600 dark:border-red-500", glow: "shadow-[0_0_35px_rgba(239,68,68,0.4)]", termBg: "bg-red-950/20 dark:bg-[#0a0000]", termText: "text-red-500", sysText: "text-orange-500" };
       case 'ENIGMA_OTE':
-        return { name: "KRX - ENIGMA IMBALANCE", icon: Radar, exe: "ENIGMA_TRAP_V5.exe", vibe: "Spatial Recon | BPR Anomalies", accent: "text-emerald-500", bg: "bg-emerald-500/10", border: "border-emerald-500/40", brackets: "border-emerald-500", glow: "shadow-[0_0_25px_rgba(16,185,129,0.25)]", termBg: "bg-slate-900 dark:bg-[#000500]", termText: "text-emerald-400", sysText: "text-purple-500" };
+        return { name: "KRX - ENIGMA IMBALANCE", icon: Radar, exe: "ENIGMA_TRAP_V5.exe", vibe: "Spatial Recon | Cipher BPR Anomalies", accent: "text-emerald-500", bg: "bg-emerald-500/10", border: "border-emerald-500/40", brackets: "border-emerald-500", glow: "shadow-[0_0_25px_rgba(16,185,129,0.25)]", termBg: "bg-slate-900 dark:bg-[#000500]", termText: "text-emerald-400", sysText: "text-purple-500" };
       default: 
         return { name: "KLASIK EA", icon: Cpu, accent: "text-blue-500", termText: "text-blue-400", sysText: "text-blue-300" };
     }
@@ -167,16 +159,6 @@ export default function Dashboard() {
     return () => clearInterval(idleLogInterval);
   }, [wsConnected, robotState, botType]);
 
-  // PERBAIKAN SCROLL: Hanya men-scroll kotak terminalnya saja, bukan layarnya!
-  useEffect(() => { 
-    if (terminalContainerRef.current) {
-      terminalContainerRef.current.scrollTo({
-        top: terminalContainerRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
-  }, [terminalLogs]);
-
   // ==========================================
   // SECTION 6: FIREBASE DATA FETCHING (MASTER)
   // ==========================================
@@ -244,6 +226,17 @@ export default function Dashboard() {
       };
     });
 
+  // FIX: Pengaman untuk tipe log yang kosong
+  const getTerminalLogColor = (type) => {
+    const safeType = type || '';
+    if (safeType === 'SYSTEM') return theme.sysText;
+    if (safeType === 'SCANNING_IDLE') return 'text-slate-500 dark:text-gray-500';
+    if (safeType === 'SYSTEM_ERROR') return 'text-red-500 font-black';
+    if (safeType === 'PROFIT_SECURED') return 'text-green-500 font-bold';
+    if (safeType === 'ENTRY_EXECUTION') return 'text-orange-500 font-bold';
+    return theme.termText;
+  };
+
   if (isLoading) return <div className="flex justify-center items-center h-screen font-bold text-[var(--primary)] animate-pulse text-xl">Connecting to Server...</div>;
   
   if (accountsList.length === 0) return (
@@ -254,14 +247,53 @@ export default function Dashboard() {
   );
 
   // ==========================================
-  // SECTION 8: UI RENDERING
+  // SECTION 8: UI RENDERING & CUSTOM CSS
   // ==========================================
   return (
     <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto font-sans transition-colors duration-300">
       
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes lightning-flash {
+          0%, 100% { opacity: 0.2; filter: brightness(1) drop-shadow(0 0 5px rgba(220,38,38,0.5)); box-shadow: 0 0 0 0 rgba(220,38,38,0); }
+          5% { opacity: 1; filter: brightness(2) drop-shadow(0 0 20px rgba(220,38,38,1)); box-shadow: 0 0 20px 5px rgba(220,38,38,0.8); }
+          10% { opacity: 0.1; filter: brightness(0.8); box-shadow: 0 0 0 0 rgba(220,38,38,0); }
+          12% { opacity: 1; filter: brightness(2.5) drop-shadow(0 0 30px rgba(220,38,38,1)); box-shadow: 0 0 30px 10px rgba(220,38,38,1); }
+          15% { opacity: 0.2; filter: brightness(1); box-shadow: 0 0 0 0 rgba(220,38,38,0); }
+        }
+        .anim-lightning {
+          animation: lightning-flash 1.5s infinite;
+          border-radius: 50%;
+          border: 2px solid rgba(220,38,38,0.5);
+          width: 100%; height: 100%; position: absolute;
+        }
+
+        @keyframes god-shine {
+          0% { transform: translateY(-100%); opacity: 0; }
+          20% { opacity: 1; }
+          80% { opacity: 1; }
+          100% { transform: translateY(100%); opacity: 0; }
+        }
+        .anim-shine {
+          background: linear-gradient(to bottom, transparent 0%, rgba(245, 158, 11, 0.6) 50%, transparent 100%);
+          animation: god-shine 2.5s ease-in-out infinite;
+          border-radius: 50%;
+          width: 100%; height: 100%; position: absolute;
+        }
+
+        @keyframes scan-radar {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .anim-radar {
+          background: conic-gradient(from 0deg, transparent 60%, rgba(16, 185, 129, 0.5) 90%, rgba(16, 185, 129, 1) 100%);
+          animation: scan-radar 2s linear infinite;
+          border-radius: 50%;
+          width: 100%; height: 100%; position: absolute;
+        }
+      `}} />
+
       {/* 8.1 HEADER PORTFOLIO & KONTROL AKUN */}
       <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-3xl p-6 md:p-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 shadow-sm relative overflow-hidden">
-        
         <div className="z-10 w-full lg:w-auto">
           <h2 className="text-sm font-black text-[var(--muted-foreground)] uppercase tracking-widest flex items-center gap-2 mb-4">
              <Activity className="text-[var(--primary)]" size={16}/> LIVE PORTFOLIO
@@ -338,17 +370,23 @@ export default function Dashboard() {
           <div className={`absolute bottom-4 right-4 w-10 h-10 border-b-4 border-r-4 ${theme.brackets} ${wsConnected ? 'opacity-60' : 'opacity-30'} rounded-br-xl pointer-events-none`}></div>
 
           <div className="flex flex-col items-center justify-center text-center space-y-4 relative z-10">
-            <div className={`w-32 h-32 flex-shrink-0 rounded-full flex items-center justify-center p-2 relative
-              ${theme.bg} border-2 ${theme.border}`}>
+            
+            <div className={`w-32 h-32 flex-shrink-0 rounded-full flex items-center justify-center p-2 relative ${theme.bg} border-2 ${theme.border} overflow-hidden`}>
               {robotState === 'SCANNING' && (
                 <>
-                  {botType === 'GOD_MODE' && (<div className={`absolute inset-0 rounded-full drop-shadow-[0_0_15px_currentColor] ${theme.accent} opacity-70`}></div>)}
-                  {botType === 'BEAST_MODE' && (<div className={`absolute inset-0 rounded-full border-4 ${theme.border} animate-pulse opacity-80 shadow-[0_0_20px_currentColor] ${theme.accent}`}></div>)}
-                  {botType === 'ENIGMA_OTE' && (<><div className={`absolute inset-0 animate-[spin_4s_linear_infinite] rounded-full bg-[conic-gradient(from_0deg,transparent_70%,currentColor_100%)] ${theme.accent} opacity-50`}></div><div className={`absolute inset-2 rounded-full border ${theme.border} opacity-40`}></div></>)}
+                  {botType === 'GOD_MODE' && <div className="anim-shine"></div>}
+                  {botType === 'BEAST_MODE' && <div className="anim-lightning"></div>}
+                  {botType === 'ENIGMA_OTE' && <div className="anim-radar"></div>}
                 </>
               )}
+              
               <div className="relative z-10 w-full h-full flex items-center justify-center">
-                {robotState !== 'SCANNING' ? (<Lottie path={animUrl[robotState]} loop autoplay style={{width: '90%'}}/>) : <BotIcon size={56} className={`${theme.accent} transition-colors duration-500`} />}
+                {/* FIX: Lottie hanya dirender jika URL animasinya tersedia */}
+                {robotState !== 'SCANNING' && animUrl[robotState] ? (
+                  <Lottie path={animUrl[robotState]} loop autoplay style={{width: '90%'}}/>
+                ) : (
+                  <BotIcon size={56} className={`${theme.accent} ${botType === 'BEAST_MODE' ? 'animate-pulse' : 'transition-colors duration-500'}`} />
+                )}
               </div>
             </div>
             
@@ -363,11 +401,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* PERBAIKAN SCROLL: Menambahkan ref ke parent div yang menampung log dan memiliki overflow */}
-          <div 
-            ref={terminalContainerRef}
-            className={`md:col-span-2 rounded-2xl border ${theme.border} p-4 font-mono text-[11px] sm:text-xs h-60 overflow-y-auto flex flex-col gap-2 relative shadow-inner group transition-colors duration-500 ${theme.termBg}`}
-          >
+          <div className={`md:col-span-2 rounded-2xl border ${theme.border} p-4 font-mono text-[11px] sm:text-xs h-60 overflow-y-auto flex flex-col gap-2 relative shadow-inner group transition-colors duration-500 ${theme.termBg}`}>
             <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.06] text-black dark:text-white transition-opacity z-0" style={{ backgroundImage: 'linear-gradient(currentColor 1px, transparent 1px)', backgroundSize: '100% 3px' }}></div>
 
             <div className={`sticky top-0 pb-2 border-b border-slate-300 dark:border-gray-800 mb-2 flex justify-between items-center z-10 backdrop-blur-md transition-colors duration-500 ${theme.termBg}/90`}>
@@ -383,8 +417,9 @@ export default function Dashboard() {
               {terminalLogs.map((log, i) => (
                 <div key={i} className="flex gap-3 animate-in fade-in slide-in-from-bottom-1 transition-colors duration-300">
                   <span className="text-slate-400 dark:text-gray-600 shrink-0 font-bold">[{log.time}]</span>
-                  <span className={`break-words ${getLogColor(log.type, theme)}`}>
-                    <span className="opacity-50 mr-1">{log.type.includes('SCANNING') ? '>' : '>>'}</span> {log.text}
+                  <span className={`break-words ${getTerminalLogColor(log.type)}`}>
+                    {/* FIX: Pengaman fallback jika log.type kosong */}
+                    <span className="opacity-50 mr-1">{(log.type || '').includes('SCANNING') ? '>' : '>>'}</span> {log.text}
                   </span>
                 </div>
               ))}
@@ -512,14 +547,4 @@ export default function Dashboard() {
 
     </div>
   );
-}
-
-// Helper: Penentuan warna teks log
-function getLogColor(type, theme) {
-  if (type === 'SYSTEM') return theme.sysText;
-  if (type === 'SUCCESS' || type === 'PROFIT_SECURED') return 'text-green-600 dark:text-green-400 font-bold';
-  if (type === 'ERROR' || type === 'SYSTEM_ERROR') return 'text-red-600 dark:text-red-500 font-black uppercase';
-  if (type === 'ENTRY_EXECUTION') return 'text-orange-600 dark:text-orange-400 font-bold';
-  if (type === 'SCANNING_IDLE') return 'text-slate-500 dark:text-gray-500';
-  return theme.termText; 
 }
