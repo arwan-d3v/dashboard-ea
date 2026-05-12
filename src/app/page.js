@@ -53,12 +53,12 @@ const dict = {
     sim_disclaimer_2: "DOES NOT GUARANTEE FUTURE RESULTS.",
     months_text: "Months",
     member_login: "Member Login",
-    opts: { klasik: "Stable", god: "Precision", enigma: "Recon", beast: "Aggressive", live: "Live Rate" },
+    opts: { classic: "Stable", god: "Precision", enigma: "Recon", beast: "Aggressive", live: "Live Rate" },
     bots: {
       god: "Absolute precision AI specialist. Trained on millions of rows of historical data to execute positions only when the win ratio exceeds critical thresholds.",
       beast: "Aggressive predator seeking momentum. Sniffs out liquidity pools and rides breakout volumes when the market is at peak volatility.",
       enigma: "Limit Order trap specialist. Analyzes market microstructure to detect BPR anomalies and sets nets at the Optimal Trade Entry (OTE) zone.",
-      klasik: "Classic algorithmic foundation without AI. Runs on a pure mathematical framework to dampen XAUUSD volatility through layered dynamic grids."
+      classic: "Classic algorithmic foundation without AI. Runs on a pure mathematical framework to dampen XAUUSD volatility through layered dynamic grids."
     }
   },
   id: {
@@ -94,12 +94,12 @@ const dict = {
     sim_disclaimer_2: "TIDAK MENJAMIN HASIL DI MASA DEPAN.",
     months_text: "Bulan",
     member_login: "Login Member",
-    opts: { klasik: "Stabil", god: "Presisi", enigma: "Pengintai", beast: "Agresif", live: "Rate Aktual" },
+    opts: { classic: "Stabil", god: "Presisi", enigma: "Pengintai", beast: "Agresif", live: "Rate Aktual" },
     bots: {
       god: "AI spesialis presisi absolut. Dilatih dengan jutaan baris data historis untuk mengeksekusi posisi hanya saat rasio kemenangan berada di atas ambang batas kritis.",
       beast: "Predator agresif pencari momentum. Mengendus penumpukan likuiditas dan menunggangi volume breakout saat pasar berada di titik puncak volatilitas.",
       enigma: "Spesialis perangkap Limit Order. Menganalisis mikrostuktur pasar untuk mendeteksi anomali BPR dan menempatkan jaring pada zona Optimal Trade Entry (OTE).",
-      klasik: "Fondasi algoritma klasik tanpa AI. Berjalan pada kerangka matematis murni untuk meredam volatilitas XAUUSD melalui grid dinamis berlapis."
+      classic: "Fondasi algoritma klasik tanpa AI. Berjalan pada kerangka matematis murni untuk meredam volatilitas XAUUSD melalui grid dinamis berlapis."
     }
   }
 };
@@ -112,7 +112,7 @@ export default function LandingPage() {
   const [activeCard, setActiveCard] = useState(null);
 
   // === REAL-TIME RATES STATE ===
-  const [realRates, setRealRates] = useState({ klasik: 8, god: 18, enigma: 24, beast: 35 });
+  const [realRates, setRealRates] = useState({ classic: 8, god: 18, enigma: 24, beast: 35 });
 
   // === SIMULATOR STATE ===
   const [simBot, setSimBot] = useState("god");
@@ -126,8 +126,8 @@ export default function LandingPage() {
     const unsubscribe = onValue(accountsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        let updatedRates = { klasik: 8, god: 18, enigma: 24, beast: 35 }; 
-        let counts = { klasik: 0, god: 0, enigma: 0, beast: 0 };
+        let updatedRates = { classic: 8, god: 18, enigma: 24, beast: 35 }; 
+        let counts = { classic: 0, god: 0, enigma: 0, beast: 0 };
         
         Object.values(data).forEach(acc => {
           const type = acc.metadata?.bot_type;
@@ -135,7 +135,7 @@ export default function LandingPage() {
           
           if (type && growth !== undefined && !isNaN(growth)) {
              let key = "";
-             if (type === "NON_ML") key = "klasik";
+             if (type === "NON_ML") key = "classic";
              if (type === "GOD_MODE") key = "god";
              if (type === "ENIGMA_OTE") key = "enigma";
              if (type === "BEAST_MODE") key = "beast";
@@ -148,7 +148,7 @@ export default function LandingPage() {
         });
 
         setRealRates({
-           klasik: counts.klasik > 0 ? updatedRates.klasik : 8,
+           classic: counts.classic > 0 ? updatedRates.classic : 8,
            god: counts.god > 0 ? updatedRates.god : 18,
            enigma: counts.enigma > 0 ? updatedRates.enigma : 24,
            beast: counts.beast > 0 ? updatedRates.beast : 35
@@ -159,7 +159,7 @@ export default function LandingPage() {
   }, []);
 
   const botThemeConfig = {
-    "klasik": { name: "KLASIK EA", color: "text-blue-500", shadow: "shadow-blue-500/50" },     
+    "classic": { name: "classic EA", color: "text-blue-500", shadow: "shadow-blue-500/50" },     
     "god": { name: "GOD HEALER", color: "text-amber-500", shadow: "shadow-amber-500/50" },     
     "enigma": { name: "ENIGMA OTE", color: "text-emerald-500", shadow: "shadow-emerald-500/50" }, 
     "beast": { name: "BEAST WATCHER", color: "text-red-500", shadow: "shadow-red-500/50" }      
