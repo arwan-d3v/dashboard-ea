@@ -16,6 +16,14 @@ const ShanksClawMarks = ({ size = 24, className, ...props }) => (
   </svg>
 );
 
+// Custom SVG Telegram Icon
+const TelegramIcon = ({ size = 24, className, ...props }) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M22 2L11 13" />
+    <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+  </svg>
+);
+
 // ============================================================================
 // DICTIONARY BILINGUAL (EN & ID)
 // ============================================================================
@@ -24,7 +32,7 @@ const dict = {
     live_node: "Live Cloud Node Active",
     title_1: "QUANTITATIVE",
     title_2: "SUPREMACY.",
-    description: "A decentralized algorithmic trading system driven by XGBoost Machine Learning and real-time Firebase Cloud synchronization. Emotionless, pure computational precision.",
+    description: "A decentralized algorithmic trading system driven by Ai Machine Learning and real-time Firebase Cloud synchronization. Emotionless, pure computational precision.",
     btn_enter: "ENTER COMMAND CENTER",
     arsenal_title: "THE PILOT MARKET",
     arsenal_sub: "Choose your artificial intelligence architecture",
@@ -53,6 +61,12 @@ const dict = {
     sim_disclaimer_2: "DOES NOT GUARANTEE FUTURE RESULTS.",
     months_text: "Months",
     member_login: "Member Login",
+    // === NEW: CTA TELEGRAM (ENGLISH) ===
+    tg_tooltip: "Establish Secure Connection",
+    banner_bot_title: "Ready to automate your wealth?",
+    banner_bot_desc: "Talk directly to the Creator and gain access to the Quantitative Nodes.",
+    banner_bot_btn: "CONNECT TO CREATOR",
+    tg_prefill: "Initiating secure connection... 🤖%0A%0AHi Arwan, I was exploring the KRX Command Center. I'm highly interested in the Quantitative Trading System and the AI Architectures. Can we discuss the potential yields and how I can gain access to the nodes?",
     opts: { klasik: "Stable", god: "Precision", enigma: "Recon", beast: "Aggressive", live: "Live Rate" },
     bots: {
       god: "Absolute precision AI specialist. Trained on millions of rows of historical data to execute positions only when the win ratio exceeds critical thresholds.",
@@ -94,6 +108,12 @@ const dict = {
     sim_disclaimer_2: "TIDAK MENJAMIN HASIL DI MASA DEPAN.",
     months_text: "Bulan",
     member_login: "Login Member",
+    // === NEW: CTA TELEGRAM (INDONESIA) ===
+    tg_tooltip: "Bangun Koneksi Aman",
+    banner_bot_title: "Siap mengotomatisasi aset Anda?",
+    banner_bot_desc: "Berbicara langsung dengan sang Kreator dan dapatkan akses ke Node Kuantitatif.",
+    banner_bot_btn: "HUBUNGI KREATOR",
+    tg_prefill: "Memulai koneksi aman... 🤖%0A%0AHalo Mas Arwan, saya baru saja melihat KRX Command Center. Saya sangat tertarik dengan Sistem Trading Kuantitatif dan Arsitektur AI-nya. Boleh kita diskusi lebih lanjut mengenai potensi profitnya dan bagaimana cara saya bisa mendapatkan akses?",
     opts: { klasik: "Stabil", god: "Presisi", enigma: "Pengintai", beast: "Agresif", live: "Rate Aktual" },
     bots: {
       god: "AI spesialis presisi absolut. Dilatih dengan jutaan baris data historis untuk mengeksekusi posisi hanya saat rasio kemenangan berada di atas ambang batas kritis.",
@@ -108,13 +128,13 @@ export default function LandingPage() {
   const [lang, setLang] = useState("en");
   const t = dict[lang];
 
-  // === FIX: MOBILE CLICK STATE DIKEMBALIKAN ===
+  // Mobile Click State
   const [activeCard, setActiveCard] = useState(null);
 
-  // === REAL-TIME RATES STATE (Diseragamkan menggunakan 'klasik') ===
+  // Real-Time Rates from Firebase
   const [realRates, setRealRates] = useState({ klasik: 8, god: 18, enigma: 24, beast: 35 });
 
-  // === SIMULATOR STATE ===
+  // Simulator States
   const [simBot, setSimBot] = useState("god");
   const [simDepo, setSimDepo] = useState(1000);
   const [simDur, setSimDur] = useState(3);
@@ -211,13 +231,29 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="relative min-h-screen text-slate-200 font-sans selection:bg-blue-500/30 overflow-x-hidden pb-32 bg-[#030712]">
+    <div className="relative min-h-screen text-slate-200 font-sans selection:bg-blue-500/30 overflow-x-hidden bg-[#030712]">
       
+      {/* FLOATING TELEGRAM BUTTON */}
+      <a 
+        href={`https://t.me/kiroix?text=${t.tg_prefill}`} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-[100] group flex items-center justify-center w-14 h-14 bg-[#2AABEE] hover:bg-[#229ED9] text-white rounded-full shadow-[0_0_20px_rgba(42,171,238,0.5)] hover:shadow-[0_0_30px_rgba(42,171,238,0.8)] hover:scale-110 transition-all duration-300"
+      >
+        <TelegramIcon size={24} className="group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
+        {/* Tooltip */}
+        <span className="absolute right-16 px-3 py-1.5 bg-black/80 backdrop-blur-md border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+          {t.tg_tooltip}
+        </span>
+      </a>
+
+      {/* Background Decor */}
       <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-blue-500 opacity-20 blur-[100px]"></div>
       </div>
 
+      {/* Floating Control Header */}
       <div className="absolute top-6 right-6 z-50 flex items-center gap-4">
         <div className="flex items-center bg-black/40 backdrop-blur-md border border-white/10 p-1 rounded-lg shadow-lg">
           <Globe size={14} className="text-slate-400 ml-2 mr-1" />
@@ -229,7 +265,7 @@ export default function LandingPage() {
         </Link>
       </div>
 
-      <main className="relative z-10 max-w-7xl mx-auto px-6 pt-24">
+      <main className="relative z-10 max-w-7xl mx-auto px-6 pt-24 pb-12">
         
         {/* === HERO SECTION === */}
         <div className="text-center max-w-3xl mx-auto space-y-8 mb-16">
@@ -307,7 +343,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* === ARSENAL GRID SECTION (FIX MOBILE CLICK) === */}
+        {/* === ARSENAL GRID SECTION === */}
         <div className="space-y-4 mb-12 text-center md:text-left flex flex-col md:flex-row justify-between items-end">
            <div>
              <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3 justify-center md:justify-start">
@@ -358,7 +394,7 @@ export default function LandingPage() {
           })}
         </div>
 
-        {/* === 3. PROJECTION MATRIX (REAL-TIME SIMULATOR) === */}
+        {/* === PROJECTION MATRIX (REAL-TIME SIMULATOR) === */}
         <div id="simulation-matrix" className="max-w-5xl mx-auto bg-[#0a0a0a] border border-white/10 rounded-3xl p-6 md:p-12 shadow-2xl relative overflow-hidden">
           
           <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at center, #3b82f6 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
@@ -380,7 +416,6 @@ export default function LandingPage() {
                   onChange={(e) => setSimBot(e.target.value)}
                   className="w-full bg-black border border-white/20 text-white rounded-xl p-4 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 appearance-none font-bold"
                 >
-                  {/* PENGAMANAN TYPO: Menggunakan ?.toFixed() */}
                   <option value="klasik">KLASIK EA ({t.opts.klasik} - {t.opts.live}: {realRates.klasik?.toFixed(1)}%)</option>
                   <option value="god">GOD HEALER ({t.opts.god} - {t.opts.live}: {realRates.god?.toFixed(1)}%)</option>
                   <option value="enigma">ENIGMA OTE ({t.opts.enigma} - {t.opts.live}: {realRates.enigma?.toFixed(1)}%)</option>
@@ -509,6 +544,24 @@ export default function LandingPage() {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* === BOTTOM CTA ELITE BANNER === */}
+        <div className="max-w-4xl mx-auto mt-24 mb-10 text-center">
+          <div className="bg-[#0a0a0a] border border-blue-500/20 p-8 md:p-12 rounded-3xl shadow-[0_0_40px_rgba(37,99,235,0.1)] relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 to-transparent pointer-events-none"></div>
+            <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-4 relative z-10">{t.banner_bot_title}</h2>
+            <p className="text-slate-400 text-sm md:text-base mb-8 relative z-10">{t.banner_bot_desc}</p>
+            <a 
+              href={`https://t.me/kiroix?text=${t.tg_prefill}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black text-sm tracking-widest uppercase rounded-xl transition-all shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:scale-105 relative z-10"
+            >
+              <TelegramIcon size={18} />
+              {t.banner_bot_btn}
+            </a>
           </div>
         </div>
 
