@@ -53,7 +53,7 @@ const dict = {
     sim_disclaimer_2: "DOES NOT GUARANTEE FUTURE RESULTS.",
     months_text: "Months",
     member_login: "Member Login",
-    opts: { klasik: "Stable", god: "Precision", enigma: "Recon", beast: "Aggressive", live: "Live Rate" },
+    opts: { classic: "Stable", god: "Precision", enigma: "Recon", beast: "Aggressive", live: "Live Rate" },
     bots: {
       god: "Absolute precision AI specialist. Trained on millions of rows of historical data to execute positions only when the win ratio exceeds critical thresholds.",
       beast: "Aggressive predator seeking momentum. Sniffs out liquidity pools and rides breakout volumes when the market is at peak volatility.",
@@ -94,7 +94,7 @@ const dict = {
     sim_disclaimer_2: "TIDAK MENJAMIN HASIL DI MASA DEPAN.",
     months_text: "Bulan",
     member_login: "Login Member",
-    opts: { klasik: "Stabil", god: "Presisi", enigma: "Pengintai", beast: "Agresif", live: "Rate Aktual" },
+    opts: { classic: "Stabil", god: "Presisi", enigma: "Pengintai", beast: "Agresif", live: "Rate Aktual" },
     bots: {
       god: "AI spesialis presisi absolut. Dilatih dengan jutaan baris data historis untuk mengeksekusi posisi hanya saat rasio kemenangan berada di atas ambang batas kritis.",
       beast: "Predator agresif pencari momentum. Mengendus penumpukan likuiditas dan menunggangi volume breakout saat pasar berada di titik puncak volatilitas.",
@@ -204,7 +204,7 @@ export default function LandingPage() {
   };
 
   const botArsenal = [
-    { id: "klasik", name: "KLASIK EA", type: "QUANTITATIVE ALGO", vibe: "Logic Martingale & Hedging Grid", desc: t.bots.klasik, image: "/images/common_bot_mode.webp", accent: "text-blue-500", borderGlow: "group-hover:border-blue-500/50 group-hover:shadow-[0_0_40px_rgba(59,130,246,0.3)]", icon: Cpu },
+    { id: "classic", name: "KLASIK EA", type: "QUANTITATIVE ALGO", vibe: "Logic Martingale & Hedging Grid", desc: t.bots.klasik, image: "/images/common_bot_mode.webp", accent: "text-blue-500", borderGlow: "group-hover:border-blue-500/50 group-hover:shadow-[0_0_40px_rgba(59,130,246,0.3)]", icon: Cpu },
     { id: "god", name: "GOD HEALER", type: "MACHINE LEARNING", vibe: "High Precision | Killzone Ratio", desc: t.bots.god, image: "/images/god_mode.jpg", accent: "text-amber-500", borderGlow: "group-hover:border-amber-500/50 group-hover:shadow-[0_0_40px_rgba(245,158,11,0.3)]", icon: Crown },
     { id: "beast", name: "BEAST WATCHER", type: "MACHINE LEARNING", vibe: "Liquidity Hunter | Maximum Volume", desc: t.bots.beast, image: "/images/beast_mode.webp", accent: "text-red-500", borderGlow: "group-hover:border-red-500/50 group-hover:shadow-[0_0_40px_rgba(239,68,68,0.3)]", icon: ShanksClawMarks },
     { id: "enigma", name: "ENIGMA OTE", type: "MACHINE LEARNING", vibe: "Spatial Recon | Cipher BPR Anomalies", desc: t.bots.enigma, image: "/images/enigma_mode.webp", accent: "text-emerald-400", borderGlow: "group-hover:border-emerald-500/50 group-hover:shadow-[0_0_40px_rgba(16,185,129,0.3)]", icon: Radar },
