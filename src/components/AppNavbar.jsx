@@ -78,7 +78,7 @@ export default function AppNavbar() {
             </div>
             <div>
               <span className="font-bold text-lg tracking-tight text-[var(--foreground)]">
-                DASHBOARD EA
+                DASHBOARD
               </span>
               <p className="text-[10px] text-[var(--muted-foreground)] -mt-1">MONITORING SYSTEM</p>
             </div>

@@ -1,10 +1,10 @@
 "use client";
+
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Mail, Lock, LogIn, AlertCircle } from "lucide-react";
-import { auth, db } from "../../lib/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { ref, get, set } from "firebase/database";
+import { auth } from "../../lib/firebase";
+import { useRouter } from "next/navigation";
+import { ShieldAlert, Lock, Mail, Loader2, Zap } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,129 +13,89 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  // Kredensial Hardcode untuk Super Admin
-  const SUPER_ADMIN_EMAIL = "admin@krx.com";
-
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError("");
     setIsLoading(true);
+    setError("");
 
     try {
-      // 1. Proses Login ke Firebase Auth
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      // 2. Tentukan Role secara mutlak (Anti Huruf Besar/Kecil)
-      let finalRole = "investor"; 
-      if (user.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
-        finalRole = "super_admin";
-      }
-
-      // 3. Cek di Realtime Database
-      const userRef = ref(db, `users/${user.uid}`);
-      const snapshot = await get(userRef);
-
-      // 4. LOGIKA SUPER PENTING: Paksa update jika dia super_admin ATAU user baru
-      if (!snapshot.exists() || finalRole === "super_admin") {
-        await set(userRef, {
-          email: user.email,
-          role: finalRole,
-          lastLogin: new Date().toISOString()
-        });
-      }
-
-      // 5. Arahkan ke Dashboard
-      router.push("/");
-      
+      await signInWithEmailAndPassword(auth, email, password);
+      // Jika sukses, arahkan ke dashboard
+      router.push("/dashboard");
     } catch (err) {
-      console.error(err);
-      setError("Email atau Password salah. Silakan periksa kembali.");
-    } finally {
+      setError("Akses Ditolak: Kredensial tidak valid atau node tidak dikenali.");
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--background)] p-4 transition-colors duration-300">
-      
-      {/* Container Form Login */}
-      <div className="w-full max-w-md bg-[var(--card-bg)] rounded-[2rem] p-8 md:p-10 border border-[var(--card-border)] shadow-xl relative z-10">
-        
-        {/* Header Login */}
-        <div className="text-center mb-10">
-          <div className="w-16 h-16 bg-[var(--primary)] rounded-2xl mx-auto flex items-center justify-center shadow-lg mb-6 transform rotate-3">
-            <span className="text-2xl font-black text-white -rotate-3">KRX</span>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-black text-[var(--foreground)] tracking-tight">
-            Welcome Back
-          </h1>
-          <p className="text-sm text-[var(--muted-foreground)] mt-2">
-            Sign in to access your KiroiX Enterprise dashboard.
-          </p>
-        </div>
+    <div className="min-h-screen bg-[#030712] flex items-center justify-center p-4 relative overflow-hidden font-sans">
+      {/* Background Effect */}
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute left-0 right-0 top-0 bottom-0 m-auto h-[300px] w-[300px] rounded-full bg-blue-600 opacity-20 blur-[100px]"></div>
+      </div>
 
-        {/* Notifikasi Error */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
-            <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
-            <p className="text-sm font-bold text-red-500">{error}</p>
-          </div>
-        )}
-
-        {/* Form Login */}
-        <form onSubmit={handleLogin} className="space-y-6">
+      <div className="relative z-10 w-full max-w-md">
+        <div className="bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 shadow-[0_0_50px_rgba(59,130,246,0.1)] backdrop-blur-sm">
           
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-[var(--muted-foreground)] uppercase tracking-widest pl-1">
-              Email Address
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-4 top-3.5 text-[var(--muted-foreground)] opacity-70" size={18} />
-              <input 
-                type="email" 
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@krx.com"
-                className="w-full bg-[var(--background)] border border-[var(--card-border)] text-[var(--foreground)] text-sm font-bold rounded-xl pl-11 pr-4 py-3.5 outline-none focus:ring-2 focus:ring-[var(--primary)] transition-all placeholder:font-normal placeholder:text-[var(--muted-foreground)] placeholder:opacity-50"
-              />
+          <div className="flex flex-col items-center justify-center mb-8">
+            <div className="w-16 h-16 bg-blue-500/10 border border-blue-500/30 rounded-2xl flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(59,130,246,0.2)]">
+              <ShieldAlert className="text-blue-500" size={32} />
             </div>
+            <h1 className="text-2xl font-black text-white tracking-widest uppercase">LOGIN</h1>
+            <p className="text-xs text-slate-500 font-mono mt-2 tracking-widest flex items-center gap-1">
+              <Zap size={10} className="text-amber-500" /> KRX SECURITY PROTOCOL
+            </p>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-[var(--muted-foreground)] uppercase tracking-widest pl-1">
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-3.5 text-[var(--muted-foreground)] opacity-70" size={18} />
-              <input 
-                type="password" 
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-[var(--background)] border border-[var(--card-border)] text-[var(--foreground)] text-sm font-bold rounded-xl pl-11 pr-4 py-3.5 outline-none focus:ring-2 focus:ring-[var(--primary)] transition-all placeholder:text-[var(--muted-foreground)] placeholder:opacity-50"
-              />
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/30 text-red-500 text-xs font-bold p-3 rounded-lg mb-6 text-center animate-pulse uppercase tracking-wider">
+              {error}
             </div>
-          </div>
+          )}
 
-          <button 
-            type="submit" 
-            disabled={isLoading}
-            className="w-full bg-[var(--primary)] hover:opacity-90 text-white font-bold text-sm rounded-xl py-3.5 shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-70"
-          >
-            {isLoading ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-            ) : (
-              <>
-                <LogIn size={18} /> Sign In
-              </>
-            )}
-          </button>
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="space-y-1">
+              <label className="text-[10px] text-slate-400 font-bold uppercase tracking-widest pl-1">Node Credential (Email)</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                <input 
+                  type="email" 
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-black border border-white/10 text-white text-sm rounded-xl pl-10 pr-4 py-3 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                  placeholder="admin@krx.com"
+                />
+              </div>
+            </div>
 
-        </form>
+            <div className="space-y-1">
+              <label className="text-[10px] text-slate-400 font-bold uppercase tracking-widest pl-1">Node Decryption (Password)</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                <input 
+                  type="password" 
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-black border border-white/10 text-white text-sm rounded-xl pl-10 pr-4 py-3 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
 
+            <button 
+              type="submit" 
+              disabled={isLoading}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black text-sm tracking-widest uppercase rounded-xl py-3.5 mt-4 transition-colors flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(37,99,235,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? <Loader2 size={18} className="animate-spin" /> : "ACCESS COMMAND CENTER"}
+            </button>
+          </form>
+
+        </div>
       </div>
     </div>
   );

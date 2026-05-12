@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronRight, Cpu, Crown, Radar, Activity, Zap, Globe } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronRight, Cpu, Crown, Radar, Activity, Zap, Globe, Calculator, Receipt, ArrowRight, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { db } from "../lib/firebase";
+import { ref, onValue } from "firebase/database";
 
 // Custom SVG Shanks Claw untuk Beast Mode
 const ShanksClawMarks = ({ size = 24, className, ...props }) => (
@@ -22,10 +24,32 @@ const dict = {
     live_node: "Live Cloud Node Active",
     title_1: "QUANTITATIVE",
     title_2: "SUPREMACY.",
-    description: "A decentralized algorithmic trading system driven by XGBoost Machine Learning and real-time Firebase Cloud synchronization. Emotionless, pure computational precision.",
+    description: "A decentralized algorithmic trading system driven by Ai Machine Learning and real-time Firebase Cloud synchronization. Emotionless, pure computational precision.",
     btn_enter: "ENTER COMMAND CENTER",
     arsenal_title: "THE ARSENAL",
     arsenal_sub: "Choose your artificial intelligence architecture",
+    sim_title: "PROJECTION MATRIX",
+    sim_sub: "Simulate your asset growth potential based on REAL-TIME AI historical performance.",
+    sim_label_bot: "Select Algorithm",
+    sim_label_depo: "Initial Deposit (USD)",
+    sim_label_dur: "Projection Duration",
+    sim_btn: "RUN SIMULATION",
+    sim_calculating: "CALCULATING...",
+    sim_awaiting: "AWAITING INPUT DATA...",
+    sim_processing: "PROCESSING MATRIX...",
+    sim_receipt_title: "KRX YIELD RECEIPT",
+    sim_lbl_node: "NODE ID",
+    sim_lbl_capital: "CAPITAL",
+    sim_lbl_duration: "DURATION",
+    sim_lbl_rate: "LIVE RATE",
+    sim_lbl_profit: "PROFIT",
+    sim_lbl_gain: "GAIN",
+    sim_lbl_final: "FINAL",
+    sim_disclaimer_1: "*PROJECTION BASED ON REAL-TIME ACCOUNT DATA.",
+    sim_disclaimer_2: "DOES NOT GUARANTEE FUTURE RESULTS.",
+    months_text: "Months",
+    member_login: "Member Login",
+    opts: { klasik: "Stable", god: "Precision", enigma: "Recon", beast: "Aggressive", live: "Live Rate" },
     bots: {
       god: "Absolute precision AI specialist. Trained on millions of rows of historical data to execute positions only when the win ratio exceeds critical thresholds.",
       beast: "Aggressive predator seeking momentum. Sniffs out liquidity pools and rides breakout volumes when the market is at peak volatility.",
@@ -41,6 +65,28 @@ const dict = {
     btn_enter: "MASUK RUANG KENDALI",
     arsenal_title: "THE ARSENAL",
     arsenal_sub: "Pilih arsitektur kecerdasan buatan Anda",
+    sim_title: "PROJECTION MATRIX",
+    sim_sub: "Simulasikan potensi pertumbuhan aset Anda berdasarkan performa AKTUAL AI kami.",
+    sim_label_bot: "Pilih Algoritma",
+    sim_label_depo: "Modal Awal (USD)",
+    sim_label_dur: "Durasi Proyeksi",
+    sim_btn: "JALANKAN SIMULASI",
+    sim_calculating: "MENGHITUNG...",
+    sim_awaiting: "MENUNGGU DATA INPUT...",
+    sim_processing: "MEMPROSES MATRIKS...",
+    sim_receipt_title: "RESI PROFIT KRX",
+    sim_lbl_node: "ID NODE",
+    sim_lbl_capital: "MODAL",
+    sim_lbl_duration: "DURASI",
+    sim_lbl_rate: "RATE AKTUAL",
+    sim_lbl_profit: "KEUNTUNGAN",
+    sim_lbl_gain: "PERTUMBUHAN",
+    sim_lbl_final: "TOTAL",
+    sim_disclaimer_1: "*PROYEKSI BERDASARKAN DATA AKUN REAL-TIME.",
+    sim_disclaimer_2: "TIDAK MENJAMIN HASIL DI MASA DEPAN.",
+    months_text: "Bulan",
+    member_login: "Login Member",
+    opts: { klasik: "Stabil", god: "Presisi", enigma: "Pengintai", beast: "Agresif", live: "Rate Aktual" },
     bots: {
       god: "AI spesialis presisi absolut. Dilatih dengan jutaan baris data historis untuk mengeksekusi posisi hanya saat rasio kemenangan berada di atas ambang batas kritis.",
       beast: "Predator agresif pencari momentum. Mengendus penumpukan likuiditas dan menunggangi volume breakout saat pasar berada di titik puncak volatilitas.",
@@ -51,77 +97,123 @@ const dict = {
 };
 
 export default function LandingPage() {
-  // State untuk bahasa, default 'en'
   const [lang, setLang] = useState("en");
   const t = dict[lang];
 
+  // === REAL-TIME RATES STATE ===
+  const [realRates, setRealRates] = useState({ klasik: 8, god: 18, enigma: 24, beast: 35 });
+
+  const [simBot, setSimBot] = useState("god");
+  const [simDepo, setSimDepo] = useState(1000);
+  const [simDur, setSimDur] = useState(6);
+  const [simResult, setSimResult] = useState(null);
+  const [isSimulating, setIsSimulating] = useState(false);
+
+  useEffect(() => {
+    const accountsRef = ref(db, 'account_data');
+    const unsubscribe = onValue(accountsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        let updatedRates = { klasik: 8, god: 18, enigma: 24, beast: 35 }; 
+        let counts = { klasik: 0, god: 0, enigma: 0, beast: 0 };
+        
+        Object.values(data).forEach(acc => {
+          const type = acc.metadata?.bot_type;
+          const growth = acc.realtime_stats?.absolute_growth_percent;
+          
+          if (type && growth !== undefined && !isNaN(growth)) {
+             let key = "";
+             if (type === "NON_ML") key = "klasik";
+             if (type === "GOD_MODE") key = "god";
+             if (type === "ENIGMA_OTE") key = "enigma";
+             if (type === "BEAST_MODE") key = "beast";
+             
+             if (key) {
+                updatedRates[key] = ((updatedRates[key] * counts[key]) + Number(growth)) / (counts[key] + 1);
+                counts[key]++;
+             }
+          }
+        });
+
+        setRealRates({
+           klasik: counts.klasik > 0 ? updatedRates.klasik : 8,
+           god: counts.god > 0 ? updatedRates.god : 18,
+           enigma: counts.enigma > 0 ? updatedRates.enigma : 24,
+           beast: counts.beast > 0 ? updatedRates.beast : 35
+        });
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const botThemeConfig = {
+    "klasik": { name: "KLASIK EA", color: "text-blue-500", shadow: "shadow-blue-500/50" },     
+    "god": { name: "GOD HEALER", color: "text-amber-500", shadow: "shadow-amber-500/50" },     
+    "enigma": { name: "ENIGMA OTE", color: "text-emerald-500", shadow: "shadow-emerald-500/50" }, 
+    "beast": { name: "BEAST WATCHER", color: "text-red-500", shadow: "shadow-red-500/50" }      
+  };
+
+  const handleSimulate = (e) => {
+    e.preventDefault();
+    setIsSimulating(true);
+    setSimResult(null);
+
+    setTimeout(() => {
+      const decimalRate = realRates[simBot] / 100;
+      const principal = parseFloat(simDepo);
+      const months = parseInt(simDur);
+      
+      const finalAmount = principal * Math.pow((1 + decimalRate), months);
+      const profit = finalAmount - principal;
+      const gainPct = (profit / principal) * 100;
+
+      setSimResult({
+        botName: botThemeConfig[simBot].name,
+        color: botThemeConfig[simBot].color,
+        shadow: botThemeConfig[simBot].shadow,
+        ratePct: realRates[simBot],
+        principal: principal,
+        months: months,
+        profit: profit,
+        gainPct: gainPct,
+        finalAmount: finalAmount
+      });
+      setIsSimulating(false);
+    }, 1200); 
+  };
+
+  const formatCur = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+
   const botArsenal = [
-    {
-      id: "god",
-      name: "GOD HEALER",
-      type: "MACHINE LEARNING",
-      vibe: "High Precision | Golden Ratio Exec",
-      desc: t.bots.god,
-      image: "/images/god_mode.jpg",
-      accent: "text-amber-500",
-      borderGlow: "group-hover:border-amber-500/50 group-hover:shadow-[0_0_40px_rgba(245,158,11,0.3)]",
-      icon: Crown
-    },
-    {
-      id: "beast",
-      name: "BEAST WATCHER",
-      type: "MACHINE LEARNING",
-      vibe: "Liquidity Hunter | Maximum Volume",
-      desc: t.bots.beast,
-      image: "/images/beast_mode.webp",
-      accent: "text-red-500",
-      borderGlow: "group-hover:border-red-500/50 group-hover:shadow-[0_0_40px_rgba(239,68,68,0.3)]",
-      icon: ShanksClawMarks
-    },
-    {
-      id: "enigma",
-      name: "ENIGMA OTE",
-      type: "MACHINE LEARNING",
-      vibe: "Spatial Recon | Cipher BPR Anomalies",
-      desc: t.bots.enigma,
-      image: "/images/enigma_mode.webp",
-      accent: "text-emerald-400",
-      borderGlow: "group-hover:border-emerald-500/50 group-hover:shadow-[0_0_40px_rgba(16,185,129,0.3)]",
-      icon: Radar
-    },
-    {
-      id: "klasik",
-      name: "KLASIK EA",
-      type: "QUANTITATIVE ALGO",
-      vibe: "Logic Martingale & Hedging Grid",
-      desc: t.bots.klasik,
-      image: "/images/common_bot_mode.webp",
-      accent: "text-blue-500",
-      borderGlow: "group-hover:border-blue-500/50 group-hover:shadow-[0_0_40px_rgba(59,130,246,0.3)]",
-      icon: Cpu
-    }
+    { id: "klasik", name: "KLASIK EA", type: "QUANTITATIVE ALGO", vibe: "Logic Martingale & Hedging Grid", desc: t.bots.klasik, image: "/images/common_bot_mode.webp", accent: "text-blue-500", borderGlow: "group-hover:border-blue-500/50 group-hover:shadow-[0_0_40px_rgba(59,130,246,0.3)]", icon: Cpu },
+    { id: "god", name: "GOD HEALER", type: "MACHINE LEARNING", vibe: "High Precision | Kill ZOne Ratio", desc: t.bots.god, image: "/images/god_mode.jpg", accent: "text-amber-500", borderGlow: "group-hover:border-amber-500/50 group-hover:shadow-[0_0_40px_rgba(245,158,11,0.3)]", icon: Crown },
+    { id: "beast", name: "BEAST WATCHER", type: "MACHINE LEARNING", vibe: "Liquidity Hunter | Maximum Volume", desc: t.bots.beast, image: "/images/beast_mode.webp", accent: "text-red-500", borderGlow: "group-hover:border-red-500/50 group-hover:shadow-[0_0_40px_rgba(239,68,68,0.3)]", icon: ShanksClawMarks },
+    { id: "enigma", name: "ENIGMA OTE", type: "MACHINE LEARNING", vibe: "Spatial Recon | Cipher BPR Anomalies", desc: t.bots.enigma, image: "/images/enigma_mode.webp", accent: "text-emerald-400", borderGlow: "group-hover:border-emerald-500/50 group-hover:shadow-[0_0_40px_rgba(16,185,129,0.3)]", icon: Radar },
   ];
 
   return (
-    // Menggunakan background transparan agar menyatu dengan global layout Anda
-    <div className="relative min-h-[calc(100vh-80px)] text-slate-200 font-sans selection:bg-blue-500/30 overflow-x-hidden">
+    <div className="relative min-h-screen text-slate-200 font-sans selection:bg-blue-500/30 overflow-x-hidden pb-32 bg-[#030712]">
       
-      {/* BACKGROUND PARTIKEL & GRID */}
       <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-blue-500 opacity-20 blur-[100px]"></div>
       </div>
 
-      {/* LANGUAGE TOGGLE FLOATING */}
-      <div className="absolute top-6 right-6 z-50 flex items-center bg-black/40 backdrop-blur-md border border-white/10 p-1 rounded-lg shadow-lg">
-        <Globe size={14} className="text-slate-400 ml-2 mr-1" />
-        <button onClick={() => setLang('en')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${lang === 'en' ? 'bg-blue-500 text-white' : 'text-slate-400 hover:text-white'}`}>EN</button>
-        <button onClick={() => setLang('id')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${lang === 'id' ? 'bg-blue-500 text-white' : 'text-slate-400 hover:text-white'}`}>ID</button>
+      {/* HEADER MELAYANG (BAHASA & LOGIN MEMBER) */}
+      <div className="absolute top-6 right-6 z-50 flex items-center gap-4">
+        <div className="flex items-center bg-black/40 backdrop-blur-md border border-white/10 p-1 rounded-lg shadow-lg">
+          <Globe size={14} className="text-slate-400 ml-2 mr-1" />
+          <button onClick={() => setLang('en')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${lang === 'en' ? 'bg-blue-500 text-white' : 'text-slate-400 hover:text-white'}`}>EN</button>
+          <button onClick={() => setLang('id')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${lang === 'id' ? 'bg-blue-500 text-white' : 'text-slate-400 hover:text-white'}`}>ID</button>
+        </div>
+        <Link href="/login" className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2 rounded-lg text-xs font-bold text-white backdrop-blur-md transition-all">
+          <User size={14} /> {t.member_login}
+        </Link>
       </div>
 
-      <main className="relative z-10 max-w-7xl mx-auto px-6 pt-24 pb-32">
+      <main className="relative z-10 max-w-7xl mx-auto px-6 pt-24">
         
-        {/* HERO SECTION */}
+        {/* === 1. HERO SECTION === */}
         <div className="text-center max-w-3xl mx-auto space-y-8 mb-32">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold tracking-widest uppercase mb-4 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
              <Activity size={12} className="animate-pulse" /> {t.live_node}
@@ -139,7 +231,7 @@ export default function LandingPage() {
           </p>
 
           <div className="pt-8">
-            <Link href="/dashboard">
+            <Link href="/login">
               <button className="group relative px-8 py-4 bg-white text-black font-black uppercase tracking-widest text-sm rounded-xl overflow-hidden hover:scale-105 transition-transform duration-300 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
                 <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-0"></div>
                 <span className="relative z-10 flex items-center gap-2 group-hover:text-white transition-colors duration-300">
@@ -150,7 +242,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* ARSENAL GRID SECTION */}
+        {/* === 2. ARSENAL GRID SECTION === */}
         <div className="space-y-4 mb-12 text-center md:text-left flex flex-col md:flex-row justify-between items-end">
            <div>
              <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3 justify-center md:justify-start">
@@ -160,11 +252,9 @@ export default function LandingPage() {
            </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-32">
           {botArsenal.map((bot) => (
             <div key={bot.id} className={`group relative h-[420px] rounded-3xl overflow-hidden border border-white/10 bg-[#0a0a0a] transition-all duration-500 ${bot.borderGlow}`}>
-              
-              {/* Gambar Background */}
               <div className="absolute inset-0 z-0">
                 <Image 
                   src={bot.image} 
@@ -173,33 +263,178 @@ export default function LandingPage() {
                   style={{ objectFit: "cover" }}
                   className="opacity-40 group-hover:opacity-60 transition-opacity duration-700 group-hover:scale-110"
                 />
-                {/* Gradient Hitam untuk membaca teks */}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent"></div>
               </div>
-
-              {/* Konten Kartu */}
               <div className="relative z-10 h-full flex flex-col justify-end p-6">
                 <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                  
                   <div className={`w-10 h-10 rounded-xl bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center mb-4 ${bot.accent}`}>
                     <bot.icon size={20} />
                   </div>
-                  
                   <p className="text-[9px] font-bold text-slate-400 tracking-widest uppercase mb-1">{bot.type}</p>
                   <h3 className={`text-xl font-black uppercase tracking-tight mb-1 ${bot.accent}`}>{bot.name}</h3>
                   <p className="text-[10px] font-mono text-slate-300 mb-4">{bot.vibe}</p>
-                  
-                  {/* Deskripsi tersembunyi yang muncul saat hover */}
                   <div className="opacity-0 group-hover:opacity-100 h-0 group-hover:h-auto overflow-hidden transition-all duration-500 delay-100">
                     <p className="text-xs text-slate-400 leading-relaxed border-t border-white/10 pt-4 mt-2">
                       {bot.desc}
                     </p>
                   </div>
-
                 </div>
               </div>
             </div>
           ))}
+        </div>
+
+        {/* === 3. PROJECTION MATRIX (REAL-TIME SIMULATOR) === */}
+        <div className="max-w-5xl mx-auto bg-[#0a0a0a] border border-white/10 rounded-3xl p-6 md:p-12 shadow-2xl relative overflow-hidden">
+          
+          <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at center, #3b82f6 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
+          
+          <div className="text-center mb-10 relative z-10">
+            <h2 className="text-3xl font-black text-white tracking-tight flex items-center justify-center gap-3">
+              <Calculator className="text-blue-500" size={28} /> {t.sim_title}
+            </h2>
+            <p className="text-slate-400 text-sm mt-3 font-bold bg-blue-500/10 inline-block px-4 py-1.5 rounded-lg border border-blue-500/20">{t.sim_sub}</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
+            
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t.sim_label_bot}</label>
+                <select 
+                  value={simBot}
+                  onChange={(e) => setSimBot(e.target.value)}
+                  className="w-full bg-black border border-white/20 text-white rounded-xl p-4 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 appearance-none font-bold"
+                >
+                  <option value="klasik">KLASIK EA ({t.opts.klasik} - {t.opts.live}: {realRates.klasik.toFixed(1)}%)</option>
+                  <option value="god">GOD HEALER ({t.opts.god} - {t.opts.live}: {realRates.god.toFixed(1)}%)</option>
+                  <option value="enigma">ENIGMA OTE ({t.opts.enigma} - {t.opts.live}: {realRates.enigma.toFixed(1)}%)</option>
+                  <option value="beast">BEAST WATCHER ({t.opts.beast} - {t.opts.live}: {realRates.beast.toFixed(1)}%)</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t.sim_label_depo}</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">$</span>
+                  <input 
+                    type="number" 
+                    min="100"
+                    step="100"
+                    value={simDepo}
+                    onChange={(e) => setSimDepo(e.target.value)}
+                    className="w-full bg-black border border-white/20 text-white font-mono rounded-xl pl-8 pr-4 py-4 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-lg"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t.sim_label_dur} ({simDur} {t.months_text})</label>
+                <input 
+                  type="range" 
+                  min="1" 
+                  max="12" 
+                  value={simDur}
+                  onChange={(e) => setSimDur(e.target.value)}
+                  className="w-full accent-blue-500 h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                />
+                <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                  <span>1 {t.months_text}</span>
+                  <span>6 {t.months_text}</span>
+                  <span>12 {t.months_text}</span>
+                </div>
+              </div>
+
+              <button 
+                onClick={handleSimulate}
+                disabled={isSimulating}
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black text-sm tracking-widest uppercase rounded-xl py-4 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isSimulating ? t.sim_calculating : t.sim_btn} <ArrowRight size={16} />
+              </button>
+            </div>
+
+            <div className="h-full flex items-center justify-center relative">
+              <div className={`w-full max-w-sm bg-[#020617] border ${simResult ? `border-${simResult.color.split('-')[1]}-500/50 ${simResult.shadow}` : 'border-white/10'} rounded-lg p-6 font-mono relative overflow-hidden transition-all duration-500 shadow-2xl min-h-[350px] flex flex-col justify-center`}>
+                
+                <div className="absolute inset-0 pointer-events-none opacity-5 bg-[linear-gradient(transparent_50%,rgba(0,0,0,1)_50%)] bg-[length:100%_4px]"></div>
+
+                {!simResult && !isSimulating && (
+                  <div className="text-center text-slate-600 space-y-4">
+                    <Receipt size={48} className="mx-auto opacity-20" />
+                    <p className="text-xs tracking-widest">{t.sim_awaiting}</p>
+                  </div>
+                )}
+
+                {isSimulating && (
+                  <div className="text-center text-blue-500 space-y-4 animate-pulse">
+                    <Activity size={48} className="mx-auto" />
+                    <p className="text-xs tracking-widest">{t.sim_processing}</p>
+                  </div>
+                )}
+
+                {simResult && !isSimulating && (
+                  <div className="relative z-10 text-xs sm:text-sm animate-in fade-in zoom-in duration-500">
+                    <div className="text-center mb-4">
+                      <p className="text-slate-500">================================</p>
+                      <p className="font-bold text-white tracking-widest py-1">{t.sim_receipt_title}</p>
+                      <p className="text-slate-500">================================</p>
+                    </div>
+
+                    <div className="space-y-2 mb-4 text-slate-300 uppercase tracking-wider">
+                      <div className="flex justify-between">
+                        <span>{t.sim_lbl_node}</span>
+                        <span className={`font-bold ${simResult.color}`}>{simResult.botName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>{t.sim_lbl_capital}</span>
+                        <span className="text-white font-mono">{formatCur(simResult.principal)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>{t.sim_lbl_duration}</span>
+                        <span className="text-white">{simResult.months} {t.months_text}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>{t.sim_lbl_rate}</span>
+                        <span className="text-white font-mono">{simResult.ratePct.toFixed(1)}% / MO</span>
+                      </div>
+                    </div>
+
+                    <div className="text-center mb-4">
+                      <p className="text-slate-500">--------------------------------</p>
+                    </div>
+
+                    <div className="space-y-2 mb-4 uppercase tracking-wider">
+                      <div className="flex justify-between">
+                        <span className="text-slate-300">{t.sim_lbl_profit}</span>
+                        <span className="text-green-400 font-bold font-mono">+{formatCur(simResult.profit)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-300">{t.sim_lbl_gain}</span>
+                        <span className="text-green-400 font-bold font-mono">+{simResult.gainPct.toFixed(1)}%</span>
+                      </div>
+                    </div>
+
+                    <div className="text-center mb-4">
+                      <p className="text-slate-500">================================</p>
+                    </div>
+
+                    <div className="flex justify-between items-center text-lg sm:text-xl">
+                      <span className="font-bold text-white tracking-widest uppercase">{t.sim_lbl_final}</span>
+                      <span className={`font-black font-mono ${simResult.color} drop-shadow-[0_0_8px_currentColor]`}>
+                        {formatCur(simResult.finalAmount)}
+                      </span>
+                    </div>
+
+                    <div className="mt-6 text-center text-[9px] text-slate-600 font-sans font-bold">
+                      <p>{t.sim_disclaimer_1}</p>
+                      <p>{t.sim_disclaimer_2}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
       </main>

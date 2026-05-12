@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { AuthProvider } from "./context/AuthContext";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { Toaster } from "sonner";
+import ClientLayoutWrapper from "../components/ClientLayoutWrapper"; // <-- Import Wrapper Baru
 
 const inter = Inter({
   subsets: ["latin"],
@@ -11,7 +12,7 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Dashboard EA | KRX Monitoring",
+  title: "Dashboard | KRX Monitoring",
   description: "Professional Expert Advisor Management System - License, Analytics & Real-time Control",
   keywords: ["expert advisor", "mt5", "mql5", "trading dashboard", "license manager"],
   authors: [{ name: "Arwan Dev" }],
@@ -23,27 +24,14 @@ export default function RootLayout({ children }) {
       <body className={`${inter.variable} font-sans bg-[var(--background)] text-[var(--foreground)] antialiased`}>
         <ErrorBoundary>
           <AuthProvider>
-            <AppLayout>
+            {/* Bungkus children dengan Wrapper yang pintar membaca rute */}
+            <ClientLayoutWrapper>
               {children}
-            </AppLayout>
+            </ClientLayoutWrapper>
           </AuthProvider>
         </ErrorBoundary>
         <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
-  );
-}
-
-// Client Layout Wrapper
-import AppNavbar from "../components/AppNavbar";
-
-function AppLayout({ children }) {
-  return (
-    <>
-      <AppNavbar />
-      <main className="min-h-[calc(100vh-4rem)]">
-        {children}
-      </main>
-    </>
   );
 }
