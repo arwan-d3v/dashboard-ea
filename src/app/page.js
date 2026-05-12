@@ -204,7 +204,7 @@ export default function LandingPage() {
   };
 
   const botArsenal = [
-    { id: "klasik", name: "KLASIK EA", type: "QUANTITATIVE ALGO", vibe: "Logic Martingale & Hedging Grid", desc: t.bots.klasik, image: "/images/common_bot_mode.webp", accent: "text-blue-500", borderGlow: "group-hover:border-blue-500/50 group-hover:shadow-[0_0_40px_rgba(59,130,246,0.3)]", icon: Cpu },
+    { id: "klasik", name: "CLASSIC EA", type: "QUANTITATIVE ALGO", vibe: "Logic Martingale & Hedging Grid", desc: t.bots.klasik, image: "/images/common_bot_mode.webp", accent: "text-blue-500", borderGlow: "group-hover:border-blue-500/50 group-hover:shadow-[0_0_40px_rgba(59,130,246,0.3)]", icon: Cpu },
     { id: "god", name: "GOD HEALER", type: "MACHINE LEARNING", vibe: "High Precision | Killzone Ratio", desc: t.bots.god, image: "/images/god_mode.jpg", accent: "text-amber-500", borderGlow: "group-hover:border-amber-500/50 group-hover:shadow-[0_0_40px_rgba(245,158,11,0.3)]", icon: Crown },
     { id: "beast", name: "BEAST WATCHER", type: "MACHINE LEARNING", vibe: "Liquidity Hunter | Maximum Volume", desc: t.bots.beast, image: "/images/beast_mode.webp", accent: "text-red-500", borderGlow: "group-hover:border-red-500/50 group-hover:shadow-[0_0_40px_rgba(239,68,68,0.3)]", icon: ShanksClawMarks },
     { id: "enigma", name: "ENIGMA OTE", type: "MACHINE LEARNING", vibe: "Spatial Recon | Cipher BPR Anomalies", desc: t.bots.enigma, image: "/images/enigma_mode.webp", accent: "text-emerald-400", borderGlow: "group-hover:border-emerald-500/50 group-hover:shadow-[0_0_40px_rgba(16,185,129,0.3)]", icon: Radar },
