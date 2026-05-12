@@ -34,39 +34,136 @@ const animUrl = {
   SYSTEM_ERROR: "https://lottie.host/a60e0eb8-7ec3-440a-9d22-1d5756c66cf1/vj9XhS45N4.json"  
 };
 
+// --- BILINGUAL DICTIONARY ---
+const dict = {
+  en: {
+    port_title: "LIVE PORTFOLIO",
+    floating: "Floating",
+    in_market: "In Market",
+    standby: "Standby",
+    update: "Update:",
+    cloud_sync: "Cloud Sync",
+    link_online: "LINK ONLINE",
+    link_offline: "LINK OFFLINE",
+    growth: "Growth",
+    abs_gain: "Absolute Gain",
+    pure_profit: "Pure Profit",
+    trading_result: "Trading Result",
+    balance: "Balance",
+    margin: "Margin",
+    max_dd: "Max Drawdown",
+    peak_trough: "Peak to Trough",
+    init_depo: "Initial Deposit",
+    top_up: "Top Up (Add)",
+    withdrawals: "Withdrawals",
+    net_capital: "Net Capital",
+    growth_traj: "Growth Trajectory",
+    daily_perf: "Daily Performance (5 Days)",
+    no_history: "No daily track record yet.",
+    live_exp: "LIVE MARKET EXPOSURE",
+    th_sym: "Symbol",
+    th_type: "Type",
+    th_vol: "Volume",
+    th_pnl: "Profit (PnL)",
+    searching_liq: "Searching for institutional liquidity gap...",
+    no_account: "No EA accounts connected."
+  },
+  id: {
+    port_title: "PORTFOLIO AKTIF",
+    floating: "Mengambang",
+    in_market: "Di Pasar",
+    standby: "Siaga",
+    update: "Pembaruan:",
+    cloud_sync: "Sinkronisasi Cloud",
+    link_online: "LINK ONLINE",
+    link_offline: "LINK OFFLINE",
+    growth: "Pertumbuhan",
+    abs_gain: "Keuntungan Absolut",
+    pure_profit: "Profit Murni",
+    trading_result: "Hasil Trading",
+    balance: "Saldo",
+    margin: "Margin",
+    max_dd: "Maks Drawdown",
+    peak_trough: "Puncak ke Lembah",
+    init_depo: "Deposit Awal",
+    top_up: "Isi Ulang (Tambah)",
+    withdrawals: "Penarikan",
+    net_capital: "Modal Bersih",
+    growth_traj: "Lintasan Pertumbuhan",
+    daily_perf: "Performa Harian (5 Hari)",
+    no_history: "Belum ada rekam jejak harian.",
+    live_exp: "EKSPOSUR PASAR AKTIF",
+    th_sym: "Simbol",
+    th_type: "Tipe",
+    th_vol: "Volume",
+    th_pnl: "Profit (PnL)",
+    searching_liq: "Mencari celah likuiditas institusional...",
+    no_account: "Tidak ada akun EA yang terhubung."
+  }
+};
+
 // ============================================================================
 // SECTION 3: MAIN DASHBOARD COMPONENT
 // ============================================================================
 export default function Dashboard() {
-  // === NEW: FIREBASE AUTHENTICATION GUARD ROUTER ===
   const router = useRouter();
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
+  // Default Language: English
   const [lang, setLang] = useState("en"); 
+  const t = dict[lang];
+
   const [allAccountsData, setAllAccountsData] = useState({});
   const [accountsList, setAccountsList] = useState([]);
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  // Status & Terminal VPS State
   const [wsConnected, setWsConnected] = useState(false);
   const [ping, setPing] = useState(0);
   const [robotState, setRobotState] = useState('SCANNING');
   const [terminalLogs, setTerminalLogs] = useState([]);
 
-  // === NEW: LOGIKA PENJAGAAN KEAMANAN ===
+  // === FIREBASE AUTHENTICATION GUARD ===
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        setIsAuthLoading(false); // Valid, izinkan masuk
+        setIsAuthLoading(false);
       } else {
-        router.push("/login"); // Tidak valid, tendang ke halaman login
+        router.push("/login");
       }
     });
     return () => unsubscribe();
   }, [router]);
 
-  // Extract Metadata per Akun
+  // === AUTO LOGOUT / IDLE TRACKER (5 MINUTES) ===
+  useEffect(() => {
+    let timeoutId;
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      // 300,000 ms = 5 Menit. Tendang ke halaman login jika diam.
+      timeoutId = setTimeout(() => {
+        signOut(auth).then(() => {
+          router.push("/login");
+        });
+      }, 300000);
+    };
+
+    window.addEventListener("mousemove", resetTimer);
+    window.addEventListener("keydown", resetTimer);
+    window.addEventListener("click", resetTimer);
+    window.addEventListener("scroll", resetTimer);
+
+    resetTimer();
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener("mousemove", resetTimer);
+      window.removeEventListener("keydown", resetTimer);
+      window.removeEventListener("click", resetTimer);
+      window.removeEventListener("scroll", resetTimer);
+    };
+  }, [router]);
+
   const currentAccountData = allAccountsData[selectedAccountId] || {};
   const metaData = currentAccountData.metadata || {};
   const botType = metaData.bot_type || "NON_ML";
@@ -104,7 +201,7 @@ export default function Dashboard() {
       setWsConnected(false);
       setTerminalLogs([]);
     } else {
-      setTerminalLogs([{ time: getGMT8Time(), text: `SYSTEM BOOT: Mengamankan koneksi ke KRX Cloud Node...`, type: "SYSTEM" }]);
+      setTerminalLogs([{ time: getGMT8Time(), text: `SYSTEM BOOT: Securing connection to KRX Cloud Node...`, type: "SYSTEM" }]);
       setRobotState('SCANNING');
       lastLogTimeRef.current = 0;
     }
@@ -253,7 +350,7 @@ export default function Dashboard() {
     return theme.termText;
   };
 
-  // === NEW: TAMPILAN LOADING SAAT CEK KEAMANAN ===
+  // === TAMPILAN LOADING SAAT CEK KEAMANAN (BAHASA INGGRIS) ===
   if (isAuthLoading) {
     return (
       <div className="flex justify-center items-center h-screen bg-[#030712] font-mono text-blue-500 animate-pulse text-sm tracking-widest uppercase">
@@ -267,7 +364,7 @@ export default function Dashboard() {
   if (accountsList.length === 0) return (
     <div className="flex flex-col items-center justify-center h-[80vh] space-y-4">
       <AlertTriangle size={64} className="text-orange-500 opacity-50" />
-      <h2 className="text-2xl font-bold text-[var(--foreground)]">Tidak ada akun EA yang terhubung.</h2>
+      <h2 className="text-2xl font-bold text-[var(--foreground)]">{t.no_account}</h2>
     </div>
   );
 
@@ -317,11 +414,11 @@ export default function Dashboard() {
         }
       `}} />
 
-      {/* 8.1 HEADER PORTFOLIO & KONTROL AKUN */}
+      {/* HEADER PORTFOLIO & KONTROL AKUN */}
       <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-3xl p-6 md:p-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 shadow-sm relative overflow-hidden">
         <div className="z-10 w-full lg:w-auto">
           <h2 className="text-sm font-black text-[var(--muted-foreground)] uppercase tracking-widest flex items-center gap-2 mb-4">
-             <Activity className="text-[var(--primary)]" size={16}/> LIVE PORTFOLIO
+             <Activity className="text-[var(--primary)]" size={16}/> {t.port_title}
           </h2>
           <div className="flex flex-wrap items-center gap-4">
              <span className="text-4xl md:text-5xl font-black text-[var(--foreground)] tracking-tight">
@@ -329,11 +426,11 @@ export default function Dashboard() {
              </span>
              {Number(liveData.total_floating || 0) < 0 ? (
                 <span className="text-sm font-bold bg-red-500/10 text-red-500 px-3 py-1.5 rounded-lg flex items-center border border-red-500/20 shadow-sm">
-                  <TrendingDown size={16} className="mr-1.5"/> Floating {formatCur(liveData.total_floating)}
+                  <TrendingDown size={16} className="mr-1.5"/> {t.floating} {formatCur(liveData.total_floating)}
                 </span>
              ) : (
                 <span className="text-sm font-bold bg-green-500/10 text-green-500 px-3 py-1.5 rounded-lg flex items-center border border-green-500/20 shadow-sm">
-                  <TrendingUp size={16} className="mr-1.5"/> Floating +{formatCur(liveData.total_floating)}
+                  <TrendingUp size={16} className="mr-1.5"/> {t.floating} +{formatCur(liveData.total_floating)}
                 </span>
              )}
           </div>
@@ -347,7 +444,7 @@ export default function Dashboard() {
                 <span className={`relative inline-flex rounded-full h-2 w-2 ${isEATrading ? 'bg-green-500' : 'bg-blue-500'}`}></span>
               </span>
               <span className={`text-[10px] font-bold uppercase tracking-wider ${isEATrading ? 'text-green-500' : 'text-blue-500'}`}>
-                {isEATrading ? 'In Market' : 'Standby'}
+                {isEATrading ? t.in_market : t.standby}
               </span>
             </div>
 
@@ -378,13 +475,13 @@ export default function Dashboard() {
           </div>
 
           <p className="text-[10px] text-[var(--muted-foreground)] font-medium flex items-center gap-1 mt-1">
-             <Clock size={10} className="text-[var(--primary)]"/> Update: {formatTimeGMT8(liveData.last_update)}
+             <Clock size={10} className="text-[var(--primary)]"/> {t.update} {formatTimeGMT8(liveData.last_update)}
           </p>
         </div>
       </div>
 
       
-      {/* 8.2 DYNAMIC AI COMMAND CENTER */}
+      {/* DYNAMIC AI COMMAND CENTER */}
       {botType !== "NON_ML" && (
         <div className={`border rounded-3xl p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 relative overflow-hidden transition-all duration-700
           bg-[var(--card-bg)] ${theme.border} ${wsConnected ? theme.glow : 'shadow-none opacity-80'}`}
@@ -421,7 +518,7 @@ export default function Dashboard() {
 
             <div className="flex gap-4 bg-[var(--background)] px-4 py-2 rounded-xl border border-[var(--card-border)] shadow-inner">
                <span className="flex items-center gap-1 text-[10px] font-bold transition-colors"><Activity size={12} className={wsConnected ? "text-blue-500 animate-pulse" : "text-gray-500"}/> {wsConnected ? `${ping}ms` : '--'}</span>
-               <span className="flex items-center gap-1 text-[10px] font-bold"><Server size={12} className={theme.accent}/> Cloud Sync</span>
+               <span className="flex items-center gap-1 text-[10px] font-bold"><Server size={12} className={theme.accent}/> {t.cloud_sync}</span>
             </div>
           </div>
 
@@ -432,7 +529,7 @@ export default function Dashboard() {
                <span className="text-slate-500 dark:text-gray-500 font-bold flex items-center gap-2 tracking-widest text-[10px] md:text-xs uppercase">
                  <Terminal size={14} className="text-slate-400 dark:text-gray-400"/> 
                  {theme.exe}
-                 {wsConnected ? (<span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-500 rounded text-[8px] animate-pulse">LINK ONLINE</span>) : (<span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-500 rounded text-[8px]">LINK OFFLINE</span>)}
+                 {wsConnected ? (<span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-500 rounded text-[8px] animate-pulse">{t.link_online}</span>) : (<span className="hidden sm:inline-block ml-2 px-1.5 py-0.5 bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-500 rounded text-[8px]">{t.link_offline}</span>)}
                </span>
                <div className="flex gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-red-500/70"></div><div className="w-2.5 h-2.5 rounded-full bg-yellow-500/70"></div><div className="w-2.5 h-2.5 rounded-full bg-green-500/70"></div></div>
             </div>
@@ -452,13 +549,13 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* 8.3 FINANCIAL METRICS */}
+      {/* FINANCIAL METRICS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 transition-transform duration-500">
         {[
-          { label: 'Growth', val: `${Number(liveData.absolute_growth_percent || 0) > 0 ? '+' : ''}${formatPct(liveData.absolute_growth_percent)}`, sub: 'Absolute Gain', icon: TrendingUp, color: 'text-green-500' },
-          { label: 'Pure Profit', val: formatCur(liveData.pure_profit), sub: 'Trading Result', icon: DollarSign, color: 'text-blue-500' },
-          { label: 'Balance', val: formatCur(liveData.balance), sub: `Margin: ${formatPct(liveData.margin_level)}`, icon: Wallet, color: 'text-[var(--foreground)]' },
-          { label: 'Max Drawdown', val: `-${formatPct(liveData.drawdown_percent)}`, sub: 'Peak to Trough', icon: TrendingDown, color: 'text-red-500' }
+          { label: t.growth, val: `${Number(liveData.absolute_growth_percent || 0) > 0 ? '+' : ''}${formatPct(liveData.absolute_growth_percent)}`, sub: t.abs_gain, icon: TrendingUp, color: 'text-green-500' },
+          { label: t.pure_profit, val: formatCur(liveData.pure_profit), sub: t.trading_result, icon: DollarSign, color: 'text-blue-500' },
+          { label: t.balance, val: formatCur(liveData.balance), sub: `${t.margin}: ${formatPct(liveData.margin_level)}`, icon: Wallet, color: 'text-[var(--foreground)]' },
+          { label: t.max_dd, val: `-${formatPct(liveData.drawdown_percent)}`, sub: t.peak_trough, icon: TrendingDown, color: 'text-red-500' }
         ].map((item, i) => (
           <div key={i} className={`bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)] p-5 flex flex-col justify-between shadow-sm transition-colors hover:border-[var(--primary)] ${i===3 ? 'border-b-4 border-b-red-500' : ''}`}>
             <p className="text-[11px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest flex items-center gap-2"><item.icon size={14} className={item.color}/> {item.label}</p>
@@ -468,12 +565,12 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* 8.4 CASH FLOW LEDGER */}
+      {/* CASH FLOW LEDGER */}
       <div className="bg-[var(--muted)]/50 rounded-2xl p-5 border border-[var(--card-border)] flex flex-wrap gap-4 justify-between items-center shadow-sm">
         {[
-          { label: 'Initial Deposit', val: formatCur(liveData.initial_deposit), icon: Wallet, c: 'text-blue-500' },
-          { label: 'Top Up (Add)', val: formatCur(liveData.additional_deposits), icon: ArrowDownToLine, c: 'text-green-500' },
-          { label: 'Withdrawals', val: formatCur(liveData.total_withdrawals), icon: ArrowUpFromLine, c: 'text-red-500' }
+          { label: t.init_depo, val: formatCur(liveData.initial_deposit), icon: Wallet, c: 'text-blue-500' },
+          { label: t.top_up, val: formatCur(liveData.additional_deposits), icon: ArrowDownToLine, c: 'text-green-500' },
+          { label: t.withdrawals, val: formatCur(liveData.total_withdrawals), icon: ArrowUpFromLine, c: 'text-red-500' }
         ].map((item, i) => (
           <div key={i} className="flex items-center gap-3 w-full md:w-auto">
             <div className={`p-2.5 rounded-xl bg-[var(--background)] shadow-sm border border-[var(--card-border)] ${item.c}`}><item.icon size={16}/></div>
@@ -485,16 +582,16 @@ export default function Dashboard() {
         ))}
         <div className="flex items-center gap-3 w-full md:w-auto border-t md:border-t-0 border-[var(--card-border)] pt-4 md:pt-0 mt-2 md:mt-0">
           <div>
-            <p className="text-[9px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest md:text-right">Net Capital</p>
+            <p className="text-[9px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest md:text-right">{t.net_capital}</p>
             <p className="font-black text-xl tracking-tight text-[var(--primary)]">{formatCur(Number(liveData.initial_deposit||0) + Number(liveData.additional_deposits||0) - Number(liveData.total_withdrawals||0))}</p>
           </div>
         </div>
       </div>
 
-      {/* 8.5 CHART & 5-DAYS HISTORY */}
+      {/* CHART & 5-DAYS HISTORY */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] p-6 shadow-sm">
-          <h3 className="font-bold text-sm text-[var(--foreground)] mb-6 flex items-center gap-2"><Activity size={16} className="text-[var(--primary)]"/> Growth Trajectory</h3>
+          <h3 className="font-bold text-sm text-[var(--foreground)] mb-6 flex items-center gap-2"><Activity size={16} className="text-[var(--primary)]"/> {t.growth_traj}</h3>
           <div className="w-full h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={mockChartData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
@@ -516,7 +613,7 @@ export default function Dashboard() {
         </div>
 
         <div className="bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] p-6 flex flex-col shadow-sm">
-          <h3 className="font-bold text-sm text-[var(--foreground)] mb-6 flex items-center gap-2"><CalendarDays size={16} className="text-[var(--primary)]"/> Daily Performance (5 Days)</h3>
+          <h3 className="font-bold text-sm text-[var(--foreground)] mb-6 flex items-center gap-2"><CalendarDays size={16} className="text-[var(--primary)]"/> {t.daily_perf}</h3>
           <div className="space-y-2 flex-grow flex flex-col justify-center">
             {realDailyHistory.length > 0 ? (
               realDailyHistory.map((day, idx) => (
@@ -533,28 +630,28 @@ export default function Dashboard() {
               ))
             ) : (
               <div className="text-center py-6 border border-[var(--card-border)] border-dashed rounded-xl">
-                <p className="text-xs font-bold text-[var(--muted-foreground)]">Belum ada rekam jejak harian.</p>
+                <p className="text-xs font-bold text-[var(--muted-foreground)]">{t.no_history}</p>
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* 8.6 LIVE OPEN POSITIONS TABLE */}
+      {/* LIVE OPEN POSITIONS TABLE */}
       <div className="bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] shadow-sm overflow-hidden transition-all duration-500">
         <div className="p-5 border-b border-[var(--card-border)] flex justify-between items-center bg-[var(--muted)]/20">
-          <h3 className="font-bold text-sm text-[var(--foreground)] flex items-center gap-2"><Clock size={16} className="text-blue-500" /> LIVE MARKET EXPOSURE ({openTrades.length})</h3>
+          <h3 className="font-bold text-sm text-[var(--foreground)] flex items-center gap-2"><Clock size={16} className="text-blue-500" /> {t.live_exp} ({openTrades.length})</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[var(--background)] text-[10px] uppercase text-[var(--muted-foreground)] border-b border-[var(--card-border)]">
-                <th className="p-4 font-black">Symbol</th><th className="p-4 font-black text-center">Type</th><th className="p-4 font-black text-center">Volume</th><th className="p-4 font-black text-right">Profit (PnL)</th>
+                <th className="p-4 font-black">{t.th_sym}</th><th className="p-4 font-black text-center">{t.th_type}</th><th className="p-4 font-black text-center">{t.th_vol}</th><th className="p-4 font-black text-right">{t.th_pnl}</th>
               </tr>
             </thead>
             <tbody className="text-sm">
               {openTrades.length === 0 ? (
-                <tr><td colSpan="4" className="p-10 text-center text-xs text-[var(--muted-foreground)] font-bold italic tracking-widest uppercase">Searching for institutional liquidity gap...</td></tr>
+                <tr><td colSpan="4" className="p-10 text-center text-xs text-[var(--muted-foreground)] font-bold italic tracking-widest uppercase">{t.searching_liq}</td></tr>
               ) : openTrades.map((trade, idx) => (
                 <tr key={idx} className="border-b border-[var(--card-border)] hover:bg-[var(--muted)]/50 transition-colors">
                   <td className="p-4"><div className="font-bold text-[var(--foreground)]">{trade.symbol}</div><div className="text-[10px] font-mono text-gray-500">#{trade.ticket}</div></td>

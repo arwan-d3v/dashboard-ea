@@ -4,47 +4,71 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { 
-  LayoutDashboard, 
-  BarChart, 
-  Key, 
-  ShieldCheck, 
-  AlertCircle, 
-  UserPlus, 
-  Cpu, 
-  LogOut, 
-  Sun, 
-  Moon 
+  LayoutDashboard, BarChart, Key, ShieldCheck, 
+  AlertCircle, UserPlus, Cpu, LogOut, Sun, Moon, Menu, X, Globe 
 } from "lucide-react";
 
-// ✅ Path yang benar sesuai struktur project Anda
 import { useAuth } from "../app/context/AuthContext";
 import { auth } from "../lib/firebase";
 import { signOut } from "firebase/auth";
 
+// ============================================================================
+// DICTIONARY NAVIGASI (EN & ID)
+// ============================================================================
+const navDict = {
+  en: {
+    dashboard: "Dashboard",
+    analytics: "Analytics",
+    license: "License",
+    manager: "Manager",
+    approval: "Approval",
+    users: "Users",
+    ea_control: "EA Control",
+    logout: "Logout",
+    logout_confirm: "Are you sure you want to exit?",
+    sys_title: "MONITORING SYSTEM"
+  },
+  id: {
+    dashboard: "Dashboard",
+    analytics: "Analitik",
+    license: "Lisensi",
+    manager: "Pengelola",
+    approval: "Persetujuan",
+    users: "Pengguna",
+    ea_control: "Kontrol EA",
+    logout: "Keluar",
+    logout_confirm: "Apakah Anda yakin ingin keluar?",
+    sys_title: "SISTEM MONITORING"
+  }
+};
+
 export default function AppNavbar() {
   const pathname = usePathname();
-  const { user, role } = useAuth();
+  const { role } = useAuth();
   
   const [isDark, setIsDark] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Fitur Bilingual: Default English
+  const [lang, setLang] = useState("en");
+  const t = navDict[lang];
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
 
   // Theme Handler
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
-    const isDarkMode = savedTheme === "dark" || !savedTheme; // default dark
-
+    const isDarkMode = savedTheme === "dark" || !savedTheme; 
     setIsDark(isDarkMode);
-    
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    if (isDarkMode) document.documentElement.classList.add("dark");
+    else document.documentElement.classList.remove("dark");
   }, []);
 
   const toggleTheme = () => {
     const newIsDark = !isDark;
     setIsDark(newIsDark);
-    
     if (newIsDark) {
       document.documentElement.classList.add("dark");
       localStorage.setItem("theme", "dark");
@@ -54,16 +78,36 @@ export default function AppNavbar() {
     }
   };
 
-  if (pathname === "/login") return null;
-
   const handleLogout = async () => {
-    if (confirm("Apakah Anda yakin ingin keluar?")) {
-      try {
-        await signOut(auth);
-      } catch (error) {
-        console.error("Logout error:", error);
-      }
+    if (confirm(t.logout_confirm)) {
+      try { await signOut(auth); } catch (error) { console.error("Logout error:", error); }
     }
+  };
+
+  // Dinamis menyusun daftar menu dengan Label dari Dictionary
+  const getNavItems = () => {
+    let items = [
+      { href: "/dashboard", icon: <LayoutDashboard size={18} />, label: t.dashboard },
+      { href: "/analytics", icon: <BarChart size={18} />, label: t.analytics },
+    ];
+
+    if (role === "admin" || role === "super_admin") {
+      items.push(
+        { type: "divider" },
+        { href: "/create-license", icon: <Key size={18} />, label: t.license },
+        { href: "/license-manager", icon: <ShieldCheck size={18} />, label: t.manager }
+      );
+    }
+
+    if (role === "super_admin") {
+      items.push(
+        { type: "divider" },
+        { href: "/approval-center", icon: <AlertCircle size={18} />, label: t.approval, color: "orange" },
+        { href: "/user-management", icon: <UserPlus size={18} />, label: t.users, color: "green" },
+        { href: "/ea-manager", icon: <Cpu size={18} />, label: t.ea_control, color: "blue" }
+      );
+    }
+    return items;
   };
 
   return (
@@ -71,103 +115,74 @@ export default function AppNavbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           
-          {/* Logo */}
-          <div className="flex items-center gap-3">
+          {/* LOGO AREA (KLIK UNTUK KE LANDING PAGE) */}
+          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
             <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
               <span className="text-white font-black text-sm tracking-tighter">KRX</span>
             </div>
             <div>
-              <span className="font-bold text-lg tracking-tight text-[var(--foreground)]">
-                DASHBOARD
-              </span>
-              <p className="text-[10px] text-[var(--muted-foreground)] -mt-1">MONITORING SYSTEM</p>
+              <span className="font-bold text-lg tracking-tight text-[var(--foreground)]">DASHBOARD</span>
+              <p className="text-[10px] text-[var(--muted-foreground)] -mt-1 hidden sm:block">{t.sys_title}</p>
             </div>
-          </div>
+          </Link>
 
-          {/* Navigation */}
-          <div className="flex items-center gap-1">
-            <NavLink href="/" icon={<LayoutDashboard size={18} />} label="Dashboard" pathname={pathname} />
-            <NavLink href="/analytics" icon={<BarChart size={18} />} label="Analytics" pathname={pathname} />
-
-            {(role === "admin" || role === "super_admin") && (
-              <>
-                <div className="w-px h-6 bg-[var(--card-border)] mx-2" />
-                <NavLink href="/create-license" icon={<Key size={18} />} label="License" pathname={pathname} />
-                <NavLink href="/license-manager" icon={<ShieldCheck size={18} />} label="Manager" pathname={pathname} />
-              </>
-            )}
-
-            {role === "super_admin" && (
-              <>
-                <NavLink 
-                  href="/approval-center" 
-                  icon={<AlertCircle size={18} />} 
-                  label="Approval" 
-                  pathname={pathname}
-                  highlight 
-                />
-                <NavLink 
-                  href="/user-management" 
-                  icon={<UserPlus size={18} />} 
-                  label="Users" 
-                  pathname={pathname}
-                  highlight 
-                />
-                <NavLink 
-                  href="/ea-manager" 
-                  icon={<Cpu size={18} />} 
-                  label="EA Control" 
-                  pathname={pathname}
-                  highlight 
-                />
-              </>
-            )}
+          {/* DESKTOP NAVIGATION */}
+          <div className="hidden lg:flex items-center gap-1">
+            {getNavItems().map((item, idx) => {
+              if (item.type === "divider") return <div key={`div-${idx}`} className="w-px h-6 bg-[var(--card-border)] mx-1" />;
+              return <NavLink key={item.href} {...item} pathname={pathname} />;
+            })}
 
             <div className="w-px h-6 bg-[var(--card-border)] mx-2" />
 
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-2.5 rounded-xl hover:bg-[var(--muted)] transition-colors"
-              title="Toggle Theme"
-            >
-              {isDark ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
+            {/* Language Toggle Desktop */}
+            <div className="flex items-center bg-[var(--muted)]/50 p-1 rounded-lg border border-[var(--card-border)] mr-2">
+              <button onClick={() => setLang('en')} className={`px-2 py-0.5 text-[10px] font-bold rounded ${lang === 'en' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500'}`}>EN</button>
+              <button onClick={() => setLang('id')} className={`px-2 py-0.5 text-[10px] font-bold rounded ${lang === 'id' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500'}`}>ID</button>
+            </div>
 
-            {/* Logout */}
-            <button
-              onClick={handleLogout}
-              className="p-2.5 text-red-500 hover:bg-red-500/10 rounded-xl transition-colors"
-              title="Logout"
-            >
-              <LogOut size={20} />
-            </button>
+            <button onClick={toggleTheme} className="p-2.5 rounded-xl hover:bg-[var(--muted)] transition-colors">{isDark ? <Sun size={20} /> : <Moon size={20} />}</button>
+            <button onClick={handleLogout} className="p-2.5 text-red-500 hover:bg-red-500/10 rounded-xl transition-colors"><LogOut size={20} /></button>
+          </div>
+
+          {/* MOBILE NAVIGATION TOGGLE */}
+          <div className="flex lg:hidden items-center gap-2">
+            <button onClick={() => setLang(lang === 'en' ? 'id' : 'en')} className="p-2 rounded-xl text-xs font-bold text-blue-500 bg-blue-500/10 border border-blue-500/20">{lang.toUpperCase()}</button>
+            <button onClick={toggleTheme} className="p-2 rounded-xl text-[var(--muted-foreground)] hover:bg-[var(--muted)]">{isDark ? <Sun size={20} /> : <Moon size={20} />}</button>
+            <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 rounded-xl text-[var(--foreground)] bg-[var(--muted)]">{isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}</button>
           </div>
         </div>
       </div>
+
+      {/* MOBILE DROPDOWN MENU */}
+      {isMobileMenuOpen && (
+        <div className="lg:hidden bg-[var(--card-bg)] border-t border-[var(--card-border)] absolute w-full left-0 animate-in slide-in-from-top-2 duration-200 shadow-2xl">
+          <div className="px-4 py-4 space-y-2 overflow-y-auto max-h-[calc(100vh-4rem)]">
+            {getNavItems().map((item, idx) => {
+              if (item.type === "divider") return <div key={`mdiv-${idx}`} className="h-px w-full bg-[var(--card-border)] my-2" />;
+              return <NavLink key={item.href} {...item} pathname={pathname} isMobile={true} />;
+            })}
+            <div className="h-px w-full bg-[var(--card-border)] my-4" />
+            <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-red-500 bg-red-500/10"><LogOut size={18} /> {t.logout}</button>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
 
-// Reusable NavLink Component
-function NavLink({ href, icon, label, pathname, highlight = false }) {
+function NavLink({ href, icon, label, pathname, color = null, isMobile = false }) {
   const isActive = pathname === href;
-  
+  const neonClasses = {
+    orange: isActive ? "bg-orange-600 text-white shadow-[0_0_15px_rgba(249,115,22,0.4)]" : "bg-orange-600/10 text-orange-500 hover:bg-orange-600/20",
+    green: isActive ? "bg-green-600 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)]" : "bg-green-600/10 text-green-500 hover:bg-green-600/20",
+    blue: isActive ? "bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]" : "bg-blue-600/10 text-blue-500 hover:bg-blue-600/20"
+  };
+  const dynamicClasses = color && neonClasses[color] ? neonClasses[color] : isActive ? "bg-[var(--muted)] text-[var(--primary)] shadow-sm" : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]";
+
   return (
-    <Link
-      href={href}
-      className={`px-4 py-2 text-sm font-medium rounded-xl flex items-center gap-2 transition-all ${
-        isActive 
-          ? highlight 
-            ? "bg-orange-500 text-white shadow-md" 
-            : "bg-[var(--muted)] text-[var(--primary)]" 
-          : highlight
-            ? "bg-orange-500/10 text-orange-500 hover:bg-orange-500/20"
-            : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
-      }`}
-    >
-      {icon}
-      <span className="hidden md:inline">{label}</span>
+    <Link href={href} className={`px-4 py-2.5 text-sm font-medium rounded-xl flex items-center gap-3 transition-all ${dynamicClasses} ${isMobile ? "w-full" : ""}`}>
+      {icon} <span className={isMobile ? "block" : "hidden xl:inline"}>{label}</span>
     </Link>
   );
 }

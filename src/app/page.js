@@ -24,10 +24,14 @@ const dict = {
     live_node: "Live Cloud Node Active",
     title_1: "QUANTITATIVE",
     title_2: "SUPREMACY.",
-    description: "A decentralized algorithmic trading system driven by Ai Machine Learning and real-time Firebase Cloud synchronization. Emotionless, pure computational precision.",
+    description: "A decentralized algorithmic trading system driven by XGBoost Machine Learning and real-time Firebase Cloud synchronization. Emotionless, pure computational precision.",
     btn_enter: "ENTER COMMAND CENTER",
-    arsenal_title: "THE ARSENAL",
+    arsenal_title: "THE PILOT MARKET",
     arsenal_sub: "Choose your artificial intelligence architecture",
+    banner_title: "Curious about your potential gain?",
+    banner_sub: "Test our AI projection matrix.",
+    banner_input: "Enter Capital (USD)",
+    banner_btn: "SIMULATE NOW",
     sim_title: "PROJECTION MATRIX",
     sim_sub: "Simulate your asset growth potential based on REAL-TIME AI historical performance.",
     sim_label_bot: "Select Algorithm",
@@ -63,8 +67,12 @@ const dict = {
     title_2: "SUPREMACY.",
     description: "Sistem trading algoritmik terdesentralisasi yang digerakkan oleh Machine Learning XGBoost dan sinkronisasi Cloud Firebase secara real-time. Bebas emosi, murni komputasi presisi.",
     btn_enter: "MASUK RUANG KENDALI",
-    arsenal_title: "THE ARSENAL",
+    arsenal_title: "THE PILOT MARKET",
     arsenal_sub: "Pilih arsitektur kecerdasan buatan Anda",
+    banner_title: "Penasaran dengan potensi profit Anda?",
+    banner_sub: "Uji matriks proyeksi AI kami.",
+    banner_input: "Modal (USD)",
+    banner_btn: "SIMULASIKAN",
     sim_title: "PROJECTION MATRIX",
     sim_sub: "Simulasikan potensi pertumbuhan aset Anda berdasarkan performa AKTUAL AI kami.",
     sim_label_bot: "Pilih Algoritma",
@@ -100,12 +108,16 @@ export default function LandingPage() {
   const [lang, setLang] = useState("en");
   const t = dict[lang];
 
+  // === FIX: MOBILE CLICK STATE DIKEMBALIKAN ===
+  const [activeCard, setActiveCard] = useState(null);
+
   // === REAL-TIME RATES STATE ===
   const [realRates, setRealRates] = useState({ klasik: 8, god: 18, enigma: 24, beast: 35 });
 
+  // === SIMULATOR STATE ===
   const [simBot, setSimBot] = useState("god");
   const [simDepo, setSimDepo] = useState(1000);
-  const [simDur, setSimDur] = useState(6);
+  const [simDur, setSimDur] = useState(3);
   const [simResult, setSimResult] = useState(null);
   const [isSimulating, setIsSimulating] = useState(false);
 
@@ -154,18 +166,18 @@ export default function LandingPage() {
   };
 
   const handleSimulate = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setIsSimulating(true);
     setSimResult(null);
 
     setTimeout(() => {
       const decimalRate = realRates[simBot] / 100;
-      const principal = parseFloat(simDepo);
+      const principal = parseFloat(simDepo) || 0; 
       const months = parseInt(simDur);
       
       const finalAmount = principal * Math.pow((1 + decimalRate), months);
       const profit = finalAmount - principal;
-      const gainPct = (profit / principal) * 100;
+      const gainPct = principal > 0 ? (profit / principal) * 100 : 0;
 
       setSimResult({
         botName: botThemeConfig[simBot].name,
@@ -184,9 +196,16 @@ export default function LandingPage() {
 
   const formatCur = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
 
+  const scrollToMatrix = () => {
+    const el = document.getElementById('simulation-matrix');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   const botArsenal = [
     { id: "klasik", name: "KLASIK EA", type: "QUANTITATIVE ALGO", vibe: "Logic Martingale & Hedging Grid", desc: t.bots.klasik, image: "/images/common_bot_mode.webp", accent: "text-blue-500", borderGlow: "group-hover:border-blue-500/50 group-hover:shadow-[0_0_40px_rgba(59,130,246,0.3)]", icon: Cpu },
-    { id: "god", name: "GOD HEALER", type: "MACHINE LEARNING", vibe: "High Precision | Kill ZOne Ratio", desc: t.bots.god, image: "/images/god_mode.jpg", accent: "text-amber-500", borderGlow: "group-hover:border-amber-500/50 group-hover:shadow-[0_0_40px_rgba(245,158,11,0.3)]", icon: Crown },
+    { id: "god", name: "GOD HEALER", type: "MACHINE LEARNING", vibe: "High Precision | Killzone Ratio", desc: t.bots.god, image: "/images/god_mode.jpg", accent: "text-amber-500", borderGlow: "group-hover:border-amber-500/50 group-hover:shadow-[0_0_40px_rgba(245,158,11,0.3)]", icon: Crown },
     { id: "beast", name: "BEAST WATCHER", type: "MACHINE LEARNING", vibe: "Liquidity Hunter | Maximum Volume", desc: t.bots.beast, image: "/images/beast_mode.webp", accent: "text-red-500", borderGlow: "group-hover:border-red-500/50 group-hover:shadow-[0_0_40px_rgba(239,68,68,0.3)]", icon: ShanksClawMarks },
     { id: "enigma", name: "ENIGMA OTE", type: "MACHINE LEARNING", vibe: "Spatial Recon | Cipher BPR Anomalies", desc: t.bots.enigma, image: "/images/enigma_mode.webp", accent: "text-emerald-400", borderGlow: "group-hover:border-emerald-500/50 group-hover:shadow-[0_0_40px_rgba(16,185,129,0.3)]", icon: Radar },
   ];
@@ -199,7 +218,6 @@ export default function LandingPage() {
         <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-blue-500 opacity-20 blur-[100px]"></div>
       </div>
 
-      {/* HEADER MELAYANG (BAHASA & LOGIN MEMBER) */}
       <div className="absolute top-6 right-6 z-50 flex items-center gap-4">
         <div className="flex items-center bg-black/40 backdrop-blur-md border border-white/10 p-1 rounded-lg shadow-lg">
           <Globe size={14} className="text-slate-400 ml-2 mr-1" />
@@ -213,8 +231,8 @@ export default function LandingPage() {
 
       <main className="relative z-10 max-w-7xl mx-auto px-6 pt-24">
         
-        {/* === 1. HERO SECTION === */}
-        <div className="text-center max-w-3xl mx-auto space-y-8 mb-32">
+        {/* === HERO SECTION === */}
+        <div className="text-center max-w-3xl mx-auto space-y-8 mb-16">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold tracking-widest uppercase mb-4 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
              <Activity size={12} className="animate-pulse" /> {t.live_node}
           </div>
@@ -230,19 +248,66 @@ export default function LandingPage() {
             {t.description}
           </p>
 
-          <div className="pt-8">
-            <Link href="/login">
-              <button className="group relative px-8 py-4 bg-white text-black font-black uppercase tracking-widest text-sm rounded-xl overflow-hidden hover:scale-105 transition-transform duration-300 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-                <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-0"></div>
-                <span className="relative z-10 flex items-center gap-2 group-hover:text-white transition-colors duration-300">
-                  {t.btn_enter} <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                </span>
-              </button>
+          <div className="pt-4">
+            <Link href="/login" className="group relative inline-flex items-center justify-center px-8 py-4 bg-white text-black font-black uppercase tracking-widest text-sm rounded-xl overflow-hidden hover:scale-105 transition-transform duration-300 shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+              <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-0"></div>
+              <span className="relative z-10 flex items-center gap-2 group-hover:text-white transition-colors duration-300">
+                {t.btn_enter} <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              </span>
             </Link>
           </div>
         </div>
 
-        {/* === 2. ARSENAL GRID SECTION === */}
+        {/* === ADS BANNER INTERAKTIF === */}
+        <div className="max-w-4xl mx-auto mb-24 transition-transform duration-300">
+          <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-[2px] rounded-3xl shadow-[0_0_30px_rgba(79,70,229,0.2)]">
+            <div className="bg-[#0a0a0a] rounded-[22px] p-5 md:p-6 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+              <div className="absolute inset-0 bg-blue-500/5 pointer-events-none"></div>
+              
+              <div className="flex items-center gap-4 relative z-10 w-full md:w-auto">
+                <div className="w-14 h-14 bg-blue-500/20 rounded-full items-center justify-center animate-pulse shrink-0 hidden md:flex">
+                  <Calculator className="text-blue-400" size={24} />
+                </div>
+                <div className="text-left flex-grow">
+                  <h4 className="text-white font-black uppercase tracking-widest text-sm md:text-base">
+                    {t.banner_title}
+                  </h4>
+                  <p className="text-slate-400 text-xs md:text-sm mt-1">
+                    {t.banner_sub}
+                  </p>
+                </div>
+              </div>
+
+              {/* INPUT LANGSUNG DI DALAM BANNER */}
+              <div className="flex flex-col sm:flex-row w-full md:w-auto gap-3 relative z-10">
+                <div className="relative w-full sm:w-48">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">$</span>
+                  <input 
+                    type="number" 
+                    min="100"
+                    step="100"
+                    value={simDepo}
+                    onChange={(e) => setSimDepo(e.target.value)}
+                    className="w-full bg-black border border-white/20 text-white font-mono rounded-xl pl-8 pr-4 py-3 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm transition-all"
+                    placeholder={t.banner_input}
+                  />
+                </div>
+                <button 
+                  onClick={() => {
+                    scrollToMatrix();
+                    handleSimulate(); 
+                  }}
+                  className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black rounded-xl uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(37,99,235,0.3)] whitespace-nowrap"
+                >
+                  {t.banner_btn} <ArrowRight size={16} />
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        {/* === ARSENAL GRID SECTION (FIX MOBILE CLICK) === */}
         <div className="space-y-4 mb-12 text-center md:text-left flex flex-col md:flex-row justify-between items-end">
            <div>
              <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3 justify-center md:justify-start">
@@ -253,39 +318,48 @@ export default function LandingPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-32">
-          {botArsenal.map((bot) => (
-            <div key={bot.id} className={`group relative h-[420px] rounded-3xl overflow-hidden border border-white/10 bg-[#0a0a0a] transition-all duration-500 ${bot.borderGlow}`}>
-              <div className="absolute inset-0 z-0">
-                <Image 
-                  src={bot.image} 
-                  alt={bot.name}
-                  fill
-                  style={{ objectFit: "cover" }}
-                  className="opacity-40 group-hover:opacity-60 transition-opacity duration-700 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent"></div>
-              </div>
-              <div className="relative z-10 h-full flex flex-col justify-end p-6">
-                <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                  <div className={`w-10 h-10 rounded-xl bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center mb-4 ${bot.accent}`}>
-                    <bot.icon size={20} />
-                  </div>
-                  <p className="text-[9px] font-bold text-slate-400 tracking-widest uppercase mb-1">{bot.type}</p>
-                  <h3 className={`text-xl font-black uppercase tracking-tight mb-1 ${bot.accent}`}>{bot.name}</h3>
-                  <p className="text-[10px] font-mono text-slate-300 mb-4">{bot.vibe}</p>
-                  <div className="opacity-0 group-hover:opacity-100 h-0 group-hover:h-auto overflow-hidden transition-all duration-500 delay-100">
-                    <p className="text-xs text-slate-400 leading-relaxed border-t border-white/10 pt-4 mt-2">
-                      {bot.desc}
-                    </p>
+          {botArsenal.map((bot) => {
+            const isActive = activeCard === bot.id;
+            
+            return (
+              <div 
+                key={bot.id} 
+                onClick={() => setActiveCard(isActive ? null : bot.id)}
+                className={`group relative h-[420px] rounded-3xl overflow-hidden border border-white/10 bg-[#0a0a0a] transition-all duration-500 cursor-pointer ${isActive ? bot.borderGlow.replace(/group-hover:/g, '') : bot.borderGlow}`}
+              >
+                <div className="absolute inset-0 z-0">
+                  <Image 
+                    src={bot.image} 
+                    alt={bot.name}
+                    fill
+                    style={{ objectFit: "cover" }}
+                    className={`transition-all duration-700 ${isActive ? 'opacity-60 scale-110' : 'opacity-40 group-hover:opacity-60 group-hover:scale-110'}`}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent"></div>
+                </div>
+                <div className="relative z-10 h-full flex flex-col justify-end p-6">
+                  <div className={`transform transition-transform duration-500 ${isActive ? 'translate-y-0' : 'translate-y-4 group-hover:translate-y-0'}`}>
+                    <div className={`w-10 h-10 rounded-xl bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center mb-4 ${bot.accent}`}>
+                      <bot.icon size={20} />
+                    </div>
+                    <p className="text-[9px] font-bold text-slate-400 tracking-widest uppercase mb-1">{bot.type}</p>
+                    <h3 className={`text-xl font-black uppercase tracking-tight mb-1 ${bot.accent}`}>{bot.name}</h3>
+                    <p className="text-[10px] font-mono text-slate-300 mb-4">{bot.vibe}</p>
+                    
+                    <div className={`overflow-hidden transition-all duration-500 delay-100 ${isActive ? 'opacity-100 max-h-48' : 'opacity-0 max-h-0 group-hover:opacity-100 group-hover:max-h-48'}`}>
+                      <p className="text-xs text-slate-400 leading-relaxed border-t border-white/10 pt-4 mt-2">
+                        {bot.desc}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* === 3. PROJECTION MATRIX (REAL-TIME SIMULATOR) === */}
-        <div className="max-w-5xl mx-auto bg-[#0a0a0a] border border-white/10 rounded-3xl p-6 md:p-12 shadow-2xl relative overflow-hidden">
+        <div id="simulation-matrix" className="max-w-5xl mx-auto bg-[#0a0a0a] border border-white/10 rounded-3xl p-6 md:p-12 shadow-2xl relative overflow-hidden">
           
           <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at center, #3b82f6 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
           
@@ -348,7 +422,7 @@ export default function LandingPage() {
               <button 
                 onClick={handleSimulate}
                 disabled={isSimulating}
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black text-sm tracking-widest uppercase rounded-xl py-4 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black text-sm tracking-widest uppercase rounded-xl py-4 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 shadow-[0_0_20px_rgba(37,99,235,0.2)]"
               >
                 {isSimulating ? t.sim_calculating : t.sim_btn} <ArrowRight size={16} />
               </button>

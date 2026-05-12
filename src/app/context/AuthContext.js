@@ -46,7 +46,8 @@ export const AuthProvider = ({ children }) => {
       {loading ? (
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-[#030712]">
            <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-           <p className="mt-4 font-bold text-slate-500 text-xs tracking-widest uppercase">Memverifikasi Sesi Sistem...</p>
+           {/* FIX: Ubah ke Bahasa Inggris sesuai tema Sci-Fi */}
+           <p className="mt-4 font-bold text-slate-500 text-xs tracking-widest uppercase">Verifying System Session...</p>
         </div>
       ) : (
         children
